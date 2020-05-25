@@ -648,7 +648,7 @@ int main(int argc, char **argv)
         sec_per_frame_amortized = 0.9 * sec_per_frame_amortized + 0.1 * timer::checkpoint(&timer);
         std::ostringstream ss_timer;
         ss_timer.precision(3);
-        ss_timer << "Space Physarum [" << 1000.0 * sec_per_frame_amortized << " ms/frame]";
+        ss_timer << "Polyphorm [" << 1000.0 * sec_per_frame_amortized << " ms/frame]";
         platform::set_window_title(window, ss_timer.str().c_str());
         
         // Event loop
