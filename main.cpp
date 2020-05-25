@@ -29,12 +29,12 @@
 // #define VELOCITY_ANALYSIS
 
 #ifdef REGIME_SDSS
-// #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_huge_t=10.3"
-// #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
-#define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
+#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
+//#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_huge_t=10.3"
+//#define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
 #define FALSE_COLOR_PALETTE "data/palette_sunset3.tga"
 const float SENSE_SPREAD = 20.0;
-const float SENSE_DISTANCE = 3.55;
+const float SENSE_DISTANCE = 2.55;
 const float MOVE_ANGLE = 10.0;
 const float MOVE_DISTANCE = 0.1;
 const float AGENT_DEPOSIT = 0.0;
@@ -130,8 +130,7 @@ enum VisualizationMode {
     VM_VOLUME_HIGHLIGHT,
     VM_VOLUME_OVERDENSITY,
     VM_VOLUME_VELOCITY,
-    VM_PARTICLES,
-    VM_STROBE
+    VM_PARTICLES
 };
 
 struct SimulationConfig {
@@ -1249,10 +1248,6 @@ int main(int argc, char **argv)
             is_toggled = vis_mode == VisualizationMode::VM_PARTICLES;
             ui::add_toggle(&panel, "VIS: PARTICLES", &is_toggled);
             vis_mode = is_toggled? VisualizationMode::VM_PARTICLES : vis_mode;
-
-            is_toggled = vis_mode == VisualizationMode::VM_STROBE;
-            ui::add_toggle(&panel, "VIS: STROBE", &is_toggled);
-            vis_mode = is_toggled? VisualizationMode::VM_STROBE : vis_mode;
 
             ui::end_panel(&panel);
             ui::end();
