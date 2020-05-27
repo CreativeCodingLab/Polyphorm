@@ -1,6 +1,8 @@
 # Polyphorm
 Interactive visualization software tool to analyze dark matter filaments using the Monte Carlo Physarum Machine algorithm.
 
+![title.png](docs/title.png)
+
 ## Requirements
 - Windows 10 (might run on older)
 - Decent GPU, especially in terms of available VRAM (tested on NVIDIA TitanX 12 GB)
@@ -21,18 +23,16 @@ The software is launched simply by running **./bin/polyphorm.exe**. The **./bin/
 
 ### Controls
 Most of Polyphorm's controls are a part of the UI, including changing the visualization modality and its parameters. The rest is mapped as follows:
-- Left mouse: rotate view
-- Right mouse: pan view
-- Wheel: zoom
+- Left/right/middle mouse: rotate/pan/zoom camera
 - F1: toggle UI
 - F2: reset the simulation
 - F3: pause/resume the simulation
 - F4: autorotating camera
 - F5: export agent data (./bin/export/)
 - F6: export field data (./bin/export/)
-- F7: toggle screen capture (stored in ./bin/capture)
+- F7: toggle continuous screen capture (stored in ./bin/capture)
 - F8: reset the field data (maintain agents' state)
-- F9: save current visualization state
+- F9: save current visualization state (camera + visual settings)
 - F10: load the saved visualization state
 - '1': take a single screenshot (stored in ./bin/capture)
 - Esc: terminate Polyphorm
