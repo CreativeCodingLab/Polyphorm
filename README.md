@@ -69,7 +69,8 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
 - [Joe Burchett](http://www.joeburchett.com/): astronomical expertise and data
 - [Angus Forbes](https://creativecoding.soe.ucsc.edu/angus/): funding and guidance
 - [Jan Ivanecky](http://janivanecky.com/): initial prototype and technical support
-Additional thanks belong to Sage Jenson, Jeff Jones, J. Xavier Prochaska, Daisuke Nagai, and Physarum polycephalum.
+
+Additional thanks belong to Sage Jenson, Jeff Jones, J. Xavier Prochaska, Daisuke Nagai, and *Physarum polycephalum*.
 
 ## Publications
 *Polyphorm* has been instrumental in the following scientific results.
