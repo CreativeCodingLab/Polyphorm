@@ -1,11 +1,17 @@
 # Polyphorm
-Interactive visualization software tool to analyze dark matter filaments using the Monte Carlo Physarum Machine algorithm.
+*Polyphorm* is an interactive tool to analyze intergalactic gas and dark matter filaments (together known as "Cosmic web") using the **Monte Carlo Physarum Machine** (MCPM) algorithm.
+
+*Polyphorm* has two main components: simulation and visualization.
+
+The simulation component implements the [MCPM algorithm](https://cgg.mff.cuni.cz/~oskar/research.html#BurchettElek2020) to reconstruct an optimal transport network given a set of point data in 3D space. Such data can represent the distribution of galaxies or dark matter halos, typically on the scales of 100s of megaparsecs. MCPM uses a swarm of millions of particle-like agents to explore the simulation domain. These agents are attracted to each other, as well as the input data. After a number of iterations, the simulation reaches a dynamic equilibrium: the agents still move, but the totality of their trajectories is stable. The output of the algorithm at this stage is a 3D spatio-temporal density of the agents which we interpret as an estimate of the Cosmic web.
+
+The visualization component facilitates analysis tasks of the estimated network. Thanks to the interactive nature of *Polyphorm* we can observe changes of the estimate in response to changing MCPM parameters. The main concern is whether the reconstruction fits the input data (i.e. all the input points are contained in it) as well as the plausibility of the obtained filamentary structures.
 
 ![title.png](docs/title.png)
 
 ## Requirements
-- Windows 10 (might run on older)
-- Decent GPU, especially in terms of available VRAM (tested on NVIDIA TitanX 12 GB)
+- Windows OS (tested on 10)
+- Decent GPU, especially in terms of available VRAM (tested on NVIDIA TitanX 12 GB, minimum recommendation 4 GB)
 - Visual Studio 2017 or 2019 (might be adapted to older versions)
 - DirectX 11 installed on system
 - DirectXTex library (repo and cofiguration: https://github.com/Microsoft/DirectXTex)
@@ -36,3 +42,13 @@ Most of Polyphorm's controls are a part of the UI, including changing the visual
 - F10: load the saved visualization state
 - '1': take a single screenshot (stored in ./bin/capture)
 - Esc: terminate Polyphorm
+
+### Fitting
+Immediately upon launching, Polyphorm starts fitting to the input data. The state of the fitting is captured in the red energy plot: the higher the energy value, the more are the simulation agents aligned with the input data. The spatio-temporal agent density is captured in the green histogram: healthy fits typically have a bell-shaped log-density distribution with a slight positive skew.
+
+![energy.png](docs/energy.png)
+
+
+
+
+
