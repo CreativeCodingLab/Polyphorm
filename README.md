@@ -1,5 +1,5 @@
 # Polyphorm
-*Polyphorm* is an interactive tool to analyze intergalactic gas and dark matter filaments (together known as "Cosmic web") using the **Monte Carlo Physarum Machine** (MCPM) algorithm.
+*Polyphorm* is an interactive tool to analyze intergalactic gas and dark matter filaments (together known as 'Cosmic web') using the **Monte Carlo Physarum Machine** (MCPM) algorithm inspired by the foraging behavior of [Physarum polycephalum](https://en.wikipedia.org/wiki/Physarum_polycephalum) 'slime mold'.
 
 *Polyphorm* has two main components: simulation and visualization.
 
@@ -28,7 +28,7 @@ The visualization component facilitates analysis tasks of the estimated network.
 The software is launched simply by running **./bin/polyphorm.exe**. The **./bin/config.polyp** file holds most of the settings. The supplied sample dataset is a corpus of 37.6k galaxies from the SDSS catalog described in *Burchett et al. 2020: Mapping the Dark Threads of the Cosmic Web*. The dataset can be changed in the preamble of **main.cpp** (will be freely configurable later).
 
 ### Controls
-Most of Polyphorm's controls are a part of the UI, including changing the visualization modality and its parameters. The rest is mapped as follows:
+Most of *Polyphorm*'s controls are a part of the UI, including changing the visualization modality and its parameters. The rest is mapped as follows:
 - Left/right/middle mouse: rotate/pan/zoom camera
 - F1: toggle UI
 - F2: reset the simulation
@@ -43,12 +43,24 @@ Most of Polyphorm's controls are a part of the UI, including changing the visual
 - '1': take a single screenshot (stored in ./bin/capture)
 - Esc: terminate Polyphorm
 
-### Fitting
-Immediately upon launching, Polyphorm starts fitting to the input data. The state of the fitting is captured in the red energy plot: the higher the energy value, the more are the simulation agents aligned with the input data. The spatio-temporal agent density is captured in the green histogram: healthy fits typically have a bell-shaped log-density distribution with a slight positive skew.
+### Simulation
+Immediately upon launching, *Polyphorm* starts fitting to the input data. The state of the fitting is captured in the red energy plot: the higher the energy value, the more are the simulation agents aligned with the input data. The spatio-temporal agent density is captured in the green histogram: healthy fits typically have a bell-shaped log-density distribution with a slight positive skew.
 
 ![energy.png](docs/energy.png)
 
+### Visualization
+*Polyphorm* supports multiple visualization modalities to facilitate the analysis of the reconstructed Cosmic web estimate.
 
+- **Particle mode** directly renders the input data (red) and MCPM agents (white) as discrete points.
+![mode_particles.png](docs/mode_particles.png)
 
+- **Trace mode** uses direct volume rendering to visualize the spatio-temporal agent density field. The density is mapped to a configurable color palette and rendered using the emission-absorption volumetric medium model.
+![mode_trace.png](docs/mode_trace.png)
+
+- **Overdensity mode** segments the trace field into three configurable intervals (low/medium/high density) and renders each with a different color (blue/green/red) to better understand the spatial distribution of the agents.
+![mode_segmentation.png](docs/mode_segmentation.png)
+
+- **Highlights mode** renders the trace (purple) superimposed on the deposit - the volumetric 'footprint' of the input data (bright yellow). This modality additionally supports the highlighting of a selected density band.
+![mode_combined.png](docs/mode_combined.png)
 
 
