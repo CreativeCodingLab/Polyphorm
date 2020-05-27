@@ -74,4 +74,4 @@ Additional thanks belong to Sage Jenson, Jeff Jones, J. Xavier Prochaska, Daisuk
 
 ## Publications
 *Polyphorm* has been instrumental in the following scientific results.
-- [Revealing the Dark Threads of the Cosmic Web](https://cgg.mff.cuni.cz/~oskar/research.html#BurchettElek2020)
+- [Revealing the Dark Threads of the Cosmic Web](https://cgg.mff.cuni.cz/~oskar/research.html#BurchettElek2020) (Astrophysical Journal Letters, March 2020)
