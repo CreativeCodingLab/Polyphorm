@@ -63,4 +63,14 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
 - **Highlights mode** renders the trace (purple) superimposed on the deposit - the volumetric 'footprint' of the input data (bright yellow). This modality additionally supports the highlighting of a selected density band.
 ![mode_combined.png](docs/mode_combined.png)
 
+## Team
+*Polyphorm* would not happen without the following humans.
+- [Oskar Elek](https://cgg.mff.cuni.cz/~oskar): corresponding author, simulation and visualization
+- [Joe Burchett](http://www.joeburchett.com/): astronomical expertise and data
+- [Angus Forbes](https://creativecoding.soe.ucsc.edu/angus/): funding and guidance
+- [Jan Ivanecky](http://janivanecky.com/): initial prototype and technical support
+Additional thanks belong to Sage Jenson, Jeff Jones, J. Xavier Prochaska, Daisuke Nagai, and Physarum polycephalum.
 
+## Publications
+*Polyphorm* has been instrumental in the following scientific results.
+- [Revealing the Dark Threads of the Cosmic Web](https://cgg.mff.cuni.cz/~oskar/research.html#BurchettElek2020)
