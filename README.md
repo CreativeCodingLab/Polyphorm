@@ -30,18 +30,13 @@ The software is launched simply by running **./bin/polyphorm.exe**. The **./bin/
 ### Controls
 Most of *Polyphorm*'s controls are a part of the UI, including changing the visualization modality and its parameters. The rest is mapped as follows:
 - Left/right/middle mouse: rotate/pan/zoom camera
-- F1: toggle UI
-- F2: reset the simulation
-- F3: pause/resume the simulation
+- F1/Esc: toggle/terminate UI
+- F2/F3: reset/toggle the simulation
 - F4: autorotating camera
-- F5: export agent data (./bin/export/)
-- F6: export field data (./bin/export/)
-- F7: toggle continuous screen capture (stored in ./bin/capture)
-- F8: reset the field data (maintain agents' state)
-- F9: save current visualization state (camera + visual settings)
-- F10: load the saved visualization state
-- '1': take a single screenshot (stored in ./bin/capture)
-- Esc: terminate Polyphorm
+- F5/F6: export agent/field data (to ./bin/export/)
+- F7/'1': activate continuous/single screen capture (stored in ./bin/capture)
+- F8: flush the trace data (but maintain agents' and simulation state)
+- F9/F10: save/load current visualization state (camera + visual settings)
 
 ### Simulation
 Immediately upon launching, *Polyphorm* starts fitting to the input data. The state of the fitting is captured in the red energy plot: the higher the energy value, the more are the simulation agents aligned with the input data. The spatio-temporal agent density is captured in the green histogram: healthy fits typically have a bell-shaped log-density distribution with a slight positive skew.
@@ -66,14 +61,18 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
 - **Trimming function** allows axis aligned slicing of the 3D space to allow for more detailed/uncluttered inspection. This works for every visualization modality.
 
 ## Team
-*Polyphorm* would not happen without the following humans.
-- [Oskar Elek](https://cgg.mff.cuni.cz/~oskar): corresponding author, simulation and visualization
-- [Joe Burchett](http://www.joeburchett.com/): astronomical expertise and data
-- [Angus Forbes](https://creativecoding.soe.ucsc.edu/angus/): funding and guidance
-- [Jan Ivanecky](http://janivanecky.com/): initial prototype and technical support
+*Polyphorm* would not happen without the following humans:
+- [Oskar Elek](https://cgg.mff.cuni.cz/~oskar) - corresponding author, simulation and visualization
+- [Joe Burchett](http://www.joeburchett.com/) - astronomical expertise and data
+- [Angus Forbes](https://creativecoding.soe.ucsc.edu/angus/) - funding and guidance
+- [Jan Ivanecky](http://janivanecky.com/) - initial prototype and technical support
 
-Additional thanks belong to Sage Jenson, Jeff Jones, J. Xavier Prochaska, Daisuke Nagai, and *Physarum polycephalum*.
+As well as one protista:
+- [Physarum polycephalum](https://en.wikipedia.org/wiki/Physarum_polycephalum) - spatial navigation and foraging
+
+Additional thanks belong to Sage Jenson, Jeff Jones, J. Xavier Prochaska, Daisuke Nagai (all humans).
 
 ## Publications
 *Polyphorm* has been instrumental in the following scientific results.
 - [Revealing the Dark Threads of the Cosmic Web](https://cgg.mff.cuni.cz/~oskar/research.html#BurchettElek2020) (Astrophysical Journal Letters, March 2020)
+- [Disentangling the Cosmic Web Towards FRB 190608](https://arxiv.org/abs/2005.13157v1) (ArXiv, May 2020)
