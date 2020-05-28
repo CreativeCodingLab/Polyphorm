@@ -63,6 +63,8 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
 - **Highlights mode** renders the trace (purple) superimposed on the deposit - the volumetric 'footprint' of the input data (bright yellow). This modality additionally supports the highlighting of a selected density band.
 ![mode_combined.png](docs/mode_combined.png)
 
+- **Trimming function** allows axis aligned slicing of the 3D space to allow for more detailed/uncluttered inspection. This works for every visualization modality.
+
 ## Team
 *Polyphorm* would not happen without the following humans.
 - [Oskar Elek](https://cgg.mff.cuni.cz/~oskar): corresponding author, simulation and visualization
