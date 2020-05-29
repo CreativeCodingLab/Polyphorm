@@ -46,19 +46,28 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
 ### Visualization
 *Polyphorm* supports multiple visualization modalities to facilitate the analysis of the reconstructed Cosmic web estimate.
 
-- **Particle mode** directly renders the input data (red) and MCPM agents (white) as discrete points.
-![mode_particles.png](docs/mode_particles.png)
+- **Particle mode** directly renders the input data (red) and MCPM agents (white) as discrete points. While the data points are static, the agents flow dynamically through space.<p>
+  <img src="docs/mode_particles.png" width="90%" height="90%">
+</p>
 
-- **Trace mode** uses direct volume rendering to visualize the spatio-temporal agent density field. The density is mapped to a configurable color palette and rendered using the emission-absorption volumetric medium model.
-![mode_trace.png](docs/mode_trace.png)
+- **Trace mode** uses direct volume rendering to visualize the spatio-temporal agent density field. The density is mapped to a configurable color palette and rendered using the emission-absorption volumetric medium model. <p>
+  <img src="docs/mode_trace.png" width="90%" height="90%">
+</p>
 
-- **Overdensity mode** segments the trace field into three configurable intervals (low/medium/high density) and renders each with a different color (blue/green/red) to better understand the spatial distribution of the agents.
-![mode_segmentation.png](docs/mode_segmentation.png)
+- **Overdensity mode** segments the trace field into three configurable intervals (low/medium/high density) and renders each with a different color (blue/green/red) to better understand the spatial distribution of the agents. <p>
+  <img src="docs/mode_segmentation.png" width="90%" height="90%">
+</p>
 
-- **Highlights mode** renders the trace (purple) superimposed on the deposit - the volumetric 'footprint' of the input data (bright yellow). This modality additionally supports the highlighting of a selected density band.
-![mode_combined.png](docs/mode_combined.png)
+- **Highlights mode** renders the trace (purple) superimposed on the deposit - the volumetric 'footprint' of the input data (bright yellow). This modality additionally supports the highlighting of a selected density band. <p>
+  <img src="docs/mode_combined.png" width="90%" height="90%">
+</p>
 
-- **Trimming function** allows axis aligned slicing of the 3D space to allow for more detailed/uncluttered inspection. This works for every visualization modality.
+- **Trimming function** allows axis aligned slicing of the 3D space to allow for more detailed/uncluttered inspection. This works for every visualization modality. <p>
+  <img src="docs/trim_particles.png" width="22%" height="22%">
+  <img src="docs/trim_trace.png" width="22%" height="22%">
+  <img src="docs/trim_segmentation.png" width="22%" height="22%">
+  <img src="docs/trim_combined.png" width="22%" height="22%">
+</p>
 
 ## Team
 *Polyphorm* would not happen without the following humans:
