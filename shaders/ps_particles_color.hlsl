@@ -14,5 +14,5 @@ float4 main(PixelInput input) : SV_TARGET
 		return float4(1.0-exp(-0.0001*v), 0, 0, 1);
 	}
 	v /= 3.0;
-	return float4(0.6*v, v, 0.7*v, 1);
+	return float4(0.6*v, v, 0.7*v, 1.0);
 }

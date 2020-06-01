@@ -96,6 +96,8 @@ const int32_t THREAD_GROUP_SIZE = 1000; // Divisible by 10! must align with sett
 const uint32_t N_HISTOGRAM_BINS = 16;
 const int32_t N_AGENTS_TO_CAPTURE = 1e3;
 const int32_t N_AGENT_TIMESTEPS_TO_CAPTURE = 10;
+const int32_t PT_GROUP_SIZE_X = 10;
+const int32_t PT_GROUP_SIZE_Y = 10;
 
 //====================================================================
 
@@ -130,7 +132,8 @@ enum VisualizationMode {
     VM_VOLUME_HIGHLIGHT,
     VM_VOLUME_OVERDENSITY,
     VM_VOLUME_VELOCITY,
-    VM_PARTICLES
+    VM_PARTICLES,
+    VM_PATH_TRACING
 };
 
 struct SimulationConfig {
@@ -184,6 +187,12 @@ struct RenderingConfig {
     float histogram_base;
     float overdensity_threshold_low;
     float overdensity_threshold_high;
+
+    float camera_x;
+    float camera_y;
+    float camera_z;
+    int pt_iteration;
+
 };
 
 struct StatisticsConfig {
@@ -415,6 +424,19 @@ int main(int argc, char **argv)
     assert(graphics::is_ready(&cs_density_histo));
     printf("cs_density_histo shader compiled...\n");
 
+    // Volumetric path tracer
+    File file_cs_volpath = file_system::read_file("cs_volpath.hlsl");
+    ComputeShader cs_volpath = graphics::get_compute_shader_from_code((char *)file_cs_volpath.data, file_cs_volpath.size);
+    file_system::release_file(file_cs_volpath);
+    assert(graphics::is_ready(&cs_volpath));
+    printf("cs_volpath shader compiled...\n");
+
+    File file_ps_volpath = file_system::read_file("ps_volpath.hlsl");
+    PixelShader ps_volpath = graphics::get_pixel_shader_from_code((char *)file_ps_volpath.data, file_ps_volpath.size);
+    file_system::release_file(file_ps_volpath);
+    assert(graphics::is_ready(&ps_volpath));
+    printf("ps_volpath shader compiled...\n");
+
     // Textures for the simulation
     Texture3D trail_tex_A = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
     Texture3D trail_tex_B = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
@@ -423,9 +445,14 @@ int main(int argc, char **argv)
     #else
     Texture3D trace_tex = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
     #endif
-    Texture2D display_tex = graphics::get_texture2D(NULL, window_width, window_height, DXGI_FORMAT_R32_FLOAT, 4);
+    Texture2D display_tex = graphics::get_texture2D(NULL, window_width, window_height, DXGI_FORMAT_R32G32B32A32_FLOAT, 16);
     Texture2D display_tex_uint = graphics::get_texture2D(NULL, window_width, window_height, DXGI_FORMAT_R32_UINT, 4);
     Texture2D false_color_tex = graphics::load_texture2D(FALSE_COLOR_PALETTE);
+
+    TextureSampler tex_sampler_trace = graphics::get_texture_sampler(CLAMP, D3D11_FILTER_ANISOTROPIC);
+    TextureSampler tex_sampler_deposit = graphics::get_texture_sampler(CLAMP, D3D11_FILTER_ANISOTROPIC);
+    TextureSampler tex_sampler_display = graphics::get_texture_sampler();
+    TextureSampler tex_sampler_false_color = graphics::get_texture_sampler();
     
 	graphics::set_blend_state(BlendType::ALPHA);
 
@@ -577,17 +604,18 @@ int main(int argc, char **argv)
     rendering_config.screen_height = (float)window_height;
     rendering_config.sample_weight = 0.1;
     rendering_config.optical_thickness = 0.05;
-    rendering_config.highlight_density = 1.0;
+    rendering_config.highlight_density = 10.0;
     rendering_config.galaxy_weight = 0.1;
     rendering_config.histogram_base = HISTOGRAM_BASE;
     rendering_config.overdensity_threshold_low = 1.0;
     rendering_config.overdensity_threshold_high = 10.0;
+    rendering_config.camera_x = eye_pos.x;
+    rendering_config.camera_y = eye_pos.y;
+    rendering_config.camera_z = eye_pos.z;
+    rendering_config.pt_iteration = 0;
     ConstantBuffer rendering_settings_buffer = graphics::get_constant_buffer(sizeof(RenderingConfig));
     graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
     graphics::set_constant_buffer(&rendering_settings_buffer, 4);
-    TextureSampler tex_sampler_trace = graphics::get_texture_sampler(CLAMP, D3D11_FILTER_ANISOTROPIC);
-    TextureSampler tex_sampler_deposit = graphics::get_texture_sampler(CLAMP, D3D11_FILTER_ANISOTROPIC);
-    TextureSampler tex_sampler_false_color = graphics::get_texture_sampler();
 
     SimulationConfig simulation_config = {};
     simulation_config.sense_spread = math::deg2rad(SENSE_SPREAD);
@@ -690,6 +718,9 @@ int main(int argc, char **argv)
                 math::cos(polar)
             ) * radius;
             rendering_config.view = math::get_translation(camera_offset) * math::get_look_at(eye_pos, Vector3(0,0,0), Vector3(0,0,1));
+            rendering_config.camera_x = eye_pos.x;
+            rendering_config.camera_y = eye_pos.y;
+            rendering_config.camera_z = eye_pos.z;
             if (CAMERA_FOV <= 0.0)
                 rendering_config.projection = math::get_orthographics_projection_dx_rh(-0.28 * radius * aspect_ratio, 0.28 * radius * aspect_ratio, -0.28 * radius, 0.28 * radius, 0.01, 10.0);
 
@@ -942,7 +973,7 @@ int main(int argc, char **argv)
                 graphics::set_vertex_shader(&vertex_shader_2d);
                 graphics::set_pixel_shader(&pixel_shader_2d);
                 graphics::set_texture(&display_tex, 0);
-                graphics::set_texture_sampler(&tex_sampler_trace, 0);
+                graphics::set_texture_sampler(&tex_sampler_display, 0);
                 graphics::draw_mesh(&quad_mesh);
                 graphics::unset_texture(0);
             }
@@ -998,6 +1029,28 @@ int main(int argc, char **argv)
 
                 graphics::unset_texture(0);
                 graphics::unset_texture(1);
+            }
+            else if (vis_mode == VisualizationMode::VM_PATH_TRACING) {
+                rendering_config.pt_iteration++;
+                float clear_tex_float[4] = {0.0, 0.0, 0.0, 0.0};
+                graphics_context->context->ClearUnorderedAccessViewFloat(display_tex.ua_view, clear_tex_float);
+                graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
+                graphics::set_compute_shader(&cs_volpath);
+                graphics::set_texture_compute(&display_tex, 0);
+                graphics::set_texture_compute(&trace_tex, 1);
+                graphics::run_compute(
+                    rendering_config.screen_width / int(PT_GROUP_SIZE_X),
+                    rendering_config.screen_height / int(PT_GROUP_SIZE_Y),
+                    1);
+                graphics::unset_texture_compute(0);
+                graphics::unset_texture_compute(1);
+
+                graphics::set_vertex_shader(&vertex_shader_2d);
+                graphics::set_pixel_shader(&ps_volpath);
+                graphics::set_texture(&display_tex, 0);
+                graphics::set_texture_sampler(&tex_sampler_display, 0);
+                graphics::draw_mesh(&quad_mesh);
+                graphics::unset_texture(0);
             }
         }
 
@@ -1248,6 +1301,10 @@ int main(int argc, char **argv)
             is_toggled = vis_mode == VisualizationMode::VM_PARTICLES;
             ui::add_toggle(&panel, "VIS: PARTICLES", &is_toggled);
             vis_mode = is_toggled? VisualizationMode::VM_PARTICLES : vis_mode;
+
+            is_toggled = vis_mode == VisualizationMode::VM_PATH_TRACING;
+            ui::add_toggle(&panel, "VIS: PATH TRACING", &is_toggled);
+            vis_mode = is_toggled? VisualizationMode::VM_PATH_TRACING : vis_mode;
 
             ui::end_panel(&panel);
             ui::end();

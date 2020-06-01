@@ -1,5 +1,5 @@
-Agents number = 10000000
-Grid resolution = 1024
+Agents number = 1000000
+Grid resolution = 720
 Grid padding = 0.1
 Screen X = 1400
 Screen Y = 850
