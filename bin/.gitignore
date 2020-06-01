@@ -11,3 +11,5 @@
 /ps_volume_velocity.hlsl
 /vs_2d.hlsl
 /vs_3d.hlsl
+/cs_volpath.hlsl
+/ps_volpath.hlsl
