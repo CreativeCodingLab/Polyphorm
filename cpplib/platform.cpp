@@ -153,7 +153,7 @@ Window platform::get_window(char *window_name, uint32_t window_width, uint32_t w
 		window_height = window_rect.bottom - window_rect.top;
 		
 		window.window_handle = CreateWindowA("CustomWindowClass", window_name, window_flags, 
-											 100, 100, window_width, window_height, NULL, NULL, program_instance, NULL);
+											 30, 10, window_width, window_height, NULL, NULL, program_instance, NULL);
 
 		RAWINPUTDEVICE device;
 		device.usUsagePage = 0x01;
