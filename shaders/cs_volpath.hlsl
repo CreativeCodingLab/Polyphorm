@@ -19,9 +19,9 @@ cbuffer ConfigBuffer : register(b4)
     float trim_z_min;
     float trim_z_max;
     float trim_density;
-    float world_width;
-    float world_height;
-    float world_depth;
+    float world_x;
+    float world_y;
+    float world_z;
     float screen_width;
     float screen_height;
 	float sample_weight;
@@ -178,28 +178,33 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     float rx = float(pixel_xy.x + rng.random_float()) / float(screen_width) * 2.0 - 1.0;
     float ry = float(pixel_xy.y + rng.random_float()) / float(screen_height) * 2.0 - 1.0;
     ry /= aspect_ratio;
-    
-    // Ray's target position on a focal plane.
-    // Note that we have to first rotate according to camera position and then
-    // make that position relative to camera position.
-    float3 rt = float3(rx, ry, -1.0f);
+
+    float screen_distance = 3.73205;
     float3 camera_pos = float3(camera_x, camera_y, camera_z);
-    rt = mul(get_view_matrix(camera_pos), rt);
-    rt += camera_pos;
+    float3 camZ = normalize(-camera_pos);
+    float3 camY = float3(0,0,1);
+	float3 camX = normalize(cross(camZ, camY));
+	camY = normalize(cross(camX, camZ));
+    float3 screen_pos =
+        camera_pos
+        + rx * camX
+        + ry * camY
+        + screen_distance * camZ;
 
-    // Ray start and direction.
+    // Ray start and direction
     float3 rp = camera_pos;
-    float3 rd = normalize(rt - rp);
+    float3 rd = normalize(screen_pos - rp);
 
-    // Get current ray's color.
+    // Get current ray's color
     float t = 0.0;
     float3 path_L = float3(0.0, 0.0, 0.0);
-    float3 c_low = float3(-1.0, -1.0, -1.0);;
-    float3 c_high = float3(1.0, 1.0, 1.0);
+    float3 diagonal_AABB = float3(1.0, world_y / world_x, world_z / world_x);
+    float3 c_low = -0.5 * diagonal_AABB;
+    float3 c_high = 0.5 * diagonal_AABB;
     t = ray_AABB_intersection_2(rd, rp, c_low, c_high);
     // t = ray_sphere_intersection(rd, rp, float3(0.0, 0.0, 0.0), 1.0);
     if (t > 0) {
-        path_L = float3(t, t, t);
+        path_L = float3(1.0-exp(-0.1*t), t, 0.0);
     }
 
     // // Reinhard tone mapping
