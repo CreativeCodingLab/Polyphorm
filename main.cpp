@@ -581,14 +581,18 @@ int main(int argc, char **argv)
     float azimuth = 0.0;
     float polar = math::PIHALF;
     float radius = 5.0;
-    Vector3 eye_pos = Vector3(math::cos(azimuth) * math::sin(polar), math::cos(polar), math::sin(azimuth) * math::sin(polar)) * radius;
-    Matrix4x4 view_matrix = math::get_look_at(eye_pos, Vector3(0,0,0), Vector3(0,1,0));
+    Vector3 eye_pos = Vector3(
+            math::cos(azimuth) * math::sin(polar),
+            math::sin(azimuth) * math::sin(polar),
+            math::cos(polar)
+        ) * radius;
+    Matrix4x4 view_matrix = math::get_look_at(eye_pos, Vector3(0,0,0), Vector3(0,0,1));
     Vector3 camera_offset = Vector3(0.0, 0.0, 0.0);
     const float CAM_OFFSET = 0.05;
 
     RenderingConfig rendering_config = {};
     rendering_config.projection = projection_matrix;
-    rendering_config.view = view_matrix;
+    rendering_config.view = math::get_identity();
     rendering_config.model = math::get_identity();
     rendering_config.trim_x_min = 0.0;
     rendering_config.trim_x_max = 1.0;
@@ -721,8 +725,8 @@ int main(int argc, char **argv)
             rendering_config.camera_x = eye_pos.x;
             rendering_config.camera_y = eye_pos.y;
             rendering_config.camera_z = eye_pos.z;
-            if (CAMERA_FOV <= 0.0)
-                rendering_config.projection = math::get_orthographics_projection_dx_rh(-0.28 * radius * aspect_ratio, 0.28 * radius * aspect_ratio, -0.28 * radius, 0.28 * radius, 0.01, 10.0);
+            // if (CAMERA_FOV <= 0.0)
+                // rendering_config.projection = math::get_orthographics_projection_dx_rh(-0.28 * radius * aspect_ratio, 0.28 * radius * aspect_ratio, -0.28 * radius, 0.28 * radius, 0.01, 10.0);
 
             if (input::key_pressed(KeyCode::ESC)) is_running = false; 
             if (input::key_pressed(KeyCode::F1)) show_ui = !show_ui; 
@@ -1172,11 +1176,11 @@ int main(int argc, char **argv)
             ++label_counter;
 
             // Draw trimming visualization
-            float slice_wy = math::max(rendering_config.trim_y_max - rendering_config.trim_y_min, 0.01);
+            float slice_wz = math::max(rendering_config.trim_z_max - rendering_config.trim_z_min, 0.01);
             const Vector4 trim_params = Vector4(float(SCREEN_X)-10.0, float(SCREEN_Y)-10.0, 0.08 * float(SCREEN_Y), 0.0);
-            const Vector4 cube_color = Vector4(0.5, 0.95, 0.5, 0.1 * slice_wy);
-            const Vector4 slice_color1 = Vector4(0.55, 0.75, 0.0, 0.3 * slice_wy);
-            const Vector4 slice_color2 = Vector4(0.0, 0.75, 0.95, 0.4 * slice_wy);
+            const Vector4 cube_color = Vector4(0.5, 0.95, 0.5, 0.1 * slice_wz);
+            const Vector4 slice_color1 = Vector4(0.55, 0.75, 0.0, 0.3 * slice_wz);
+            const Vector4 slice_color2 = Vector4(0.0, 0.75, 0.95, 0.4 * slice_wz);
             ui::draw_rect(
                 trim_params.x - trim_params.z,
                 trim_params.y - trim_params.z,
@@ -1185,16 +1189,16 @@ int main(int argc, char **argv)
                 cube_color);
             float slice_px = 1.0 - (rendering_config.trim_x_max + rendering_config.trim_x_min) / 2.0;
             float slice_wx = math::max(rendering_config.trim_x_max - rendering_config.trim_x_min, 0.025);
-            float slice_pz = 1.0 - (rendering_config.trim_z_max + rendering_config.trim_z_min) / 2.0;
-            float slice_wz = math::max(rendering_config.trim_z_max - rendering_config.trim_z_min, 0.025);
-            if (slice_wz > slice_wx) {
-                ui::draw_rect(trim_params.x - math::min(slice_pz + 0.5*slice_wz, 1.0) * trim_params.z, trim_params.y - trim_params.z, trim_params.z * (slice_wz - math::max(math::max(1.0-slice_pz, slice_pz) + 0.5*slice_wz - 1.0, 0.0)), trim_params.z, slice_color1);
+            float slice_py = 1.0 - (rendering_config.trim_y_max + rendering_config.trim_y_min) / 2.0;
+            float slice_wy = math::max(rendering_config.trim_y_max - rendering_config.trim_y_min, 0.025);
+            if (slice_wy > slice_wx) {
+                ui::draw_rect(trim_params.x - math::min(slice_py + 0.5*slice_wy, 1.0) * trim_params.z, trim_params.y - trim_params.z, trim_params.z * (slice_wy - math::max(math::max(1.0-slice_py, slice_py) + 0.5*slice_wy - 1.0, 0.0)), trim_params.z, slice_color1);
                 ui::draw_rect(trim_params.x - trim_params.z, trim_params.y - math::min(slice_px + 0.5*slice_wx, 1.0) * trim_params.z, trim_params.z, trim_params.z * (slice_wx - math::max(math::max(1.0-slice_px, slice_px) + 0.5*slice_wx - 1.0, 0.0)), slice_color2);
             } else {
                 ui::draw_rect(trim_params.x - trim_params.z, trim_params.y - math::min(slice_px + 0.5*slice_wx, 1.0) * trim_params.z, trim_params.z, trim_params.z * (slice_wx - math::max(math::max(1.0-slice_px, slice_px) + 0.5*slice_wx - 1.0, 0.0)), slice_color2);
-                ui::draw_rect(trim_params.x - math::min(slice_pz + 0.5*slice_wz, 1.0) * trim_params.z, trim_params.y - trim_params.z, trim_params.z * (slice_wz - math::max(math::max(1.0-slice_pz, slice_pz) + 0.5*slice_wz - 1.0, 0.0)), trim_params.z, slice_color1);
+                ui::draw_rect(trim_params.x - math::min(slice_py + 0.5*slice_wy, 1.0) * trim_params.z, trim_params.y - trim_params.z, trim_params.z * (slice_wy - math::max(math::max(1.0-slice_py, slice_py) + 0.5*slice_wy - 1.0, 0.0)), trim_params.z, slice_color1);
             }
-            ui::draw_text("Z", Vector2(trim_params.x - 0.52 * trim_params.z, trim_params.y - trim_params.z - 15.0), label_color);
+            ui::draw_text("Y", Vector2(trim_params.x - 0.52 * trim_params.z, trim_params.y - trim_params.z - 15.0), label_color);
             ui::draw_text("X", Vector2(trim_params.x - trim_params.z - 10.0, trim_params.y - 0.52 * trim_params.z), label_color);
 
             ui::end();
