@@ -1,7 +1,8 @@
-static const float PI = 3.141592;
-static const float PI2 = PI * 2.0;
-static const int PT_GROUP_SIZE_X = 10;
-static const int PT_GROUP_SIZE_Y = 10;
+#define PT_GROUP_SIZE_X 10
+#define PT_GROUP_SIZE_Y 10
+#define PI 3.141592
+#define PI2 (2.0*PI)
+#define RAY_EPSILON 1.e-5
 
 RWTexture2D<float4> tex_accumulator: register(u0);
 RWTexture3D<half4> tex_trace: register(u1);
@@ -108,57 +109,24 @@ float ray_sphere_intersection(float3 rd, float3 rp, float3 p, float r) {
     return -1;
 };
 
-float ray_AABB_intersection(float3 rd, float3 rp, float3 c_lo, float3 c_hi)
-{
-    // r.dir is unit direction vector of ray
-    float3 dirfrac = 1.0 / rd;
-
-    // lb is the corner of AABB with minimal coordinates -
-    // - left bottom, rt is maximal corner; r.org is origin of ray
-    float t1 = (c_lo.x - rp.x) * dirfrac;
-    float t2 = (c_hi.x - rp.x) * dirfrac;
-    float t3 = (c_lo.y - rp.y) * dirfrac;
-    float t4 = (c_hi.y - rp.y) * dirfrac;
-    float t5 = (c_lo.z - rp.z) * dirfrac;
-    float t6 = (c_hi.z - rp.z) * dirfrac;
-
-    float tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
-    float tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
-
-    // if tmax < 0, ray (line) is intersecting AABB, but the whole AABB is behind us
-    if (tmax < 0.0) {
-        return tmax;
-    }
-    // if tmin > tmax, ray doesn't intersect AABB
-    if (tmin > tmax) {
-        return -tmax;
-    }
-    return tmin;
-};
-
-float ray_AABB_intersection_2(float3 rd, float3 rp, float3 c_lo, float3 c_hi) {
-    float t[10];
-    t[1] = (c_lo.x - rp.x) / rd.x;
-    t[2] = (c_hi.x - rp.x) / rd.x;
-    t[3] = (c_lo.y - rp.y) / rd.y;
-    t[4] = (c_hi.y - rp.y) / rd.y;
-    t[5] = (c_lo.z - rp.z) / rd.z;
-    t[6] = (c_hi.z - rp.z) / rd.z;
-    t[7] = max(max(min(t[1], t[2]), min(t[3], t[4])), min(t[5], t[6]));
-    t[8] = min(min(max(t[1], t[2]), max(t[3], t[4])), max(t[5], t[6]));
-    t[9] = (t[8] < 0 || t[7] > t[8]) ? -1.0 : t[7];
-    return t[9];
+float2 ray_AABB_intersection(float3 rd, float3 rp, float3 c_lo, float3 c_hi) {
+    float t[8];
+    t[0] = (c_lo.x - rp.x) / rd.x;
+    t[1] = (c_hi.x - rp.x) / rd.x;
+    t[2] = (c_lo.y - rp.y) / rd.y;
+    t[3] = (c_hi.y - rp.y) / rd.y;
+    t[4] = (c_lo.z - rp.z) / rd.z;
+    t[5] = (c_hi.z - rp.z) / rd.z;
+    t[6] = max(max(min(t[0], t[1]), min(t[2], t[3])), min(t[4], t[5]));
+    t[7] = min(min(max(t[0], t[1]), max(t[2], t[3])), max(t[4], t[5]));
+    return (t[7] < 0 || t[6] >= t[7]) ? float2(-1.0, -1.0) : float2(t[6], t[7]);
 }
 
-float3x3 get_view_matrix(float3 cam_pos) {
-	float3 y = float3(0,1,0);
-	float3 z = normalize(cam_pos);
-	float3 x = normalize(cross(y, z));
-	y = normalize(cross(z, x));
-	return float3x3(
-		x.x, y.x, z.x,
-		x.y, y.y, z.y,
-		x.z, y.z, z.z);
+float3 coord_normalized_to_texture(float3 coord, float3 c_lo, float3 c_hi, float3 size) {
+    float3 coord_rel = (coord - c_lo) / (c_hi - c_lo);
+    coord_rel.y = 1.0-coord_rel.y;
+    coord_rel.z = 1.0-coord_rel.z;
+    return coord_rel * size;
 }
 
 [numthreads(PT_GROUP_SIZE_X, PT_GROUP_SIZE_Y, 1)]
@@ -169,8 +137,8 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 
     RNG rng;
     rng.set_seed(
-        rng.wang_hash(73*idx),
-        rng.wang_hash(pixel_xy.x * pixel_xy.y * pt_iteration)
+        rng.wang_hash(73 * idx + 1),
+        rng.wang_hash(pixel_xy.x * pixel_xy.y * pt_iteration + 1)
     );
 
     // Compute x and y ray directions in "neutral" camera position.
@@ -196,15 +164,27 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     float3 rd = normalize(screen_pos - rp);
 
     // Get current ray's color
-    float t = 0.0;
+    float2 t = 0.0;
     float3 path_L = float3(0.0, 0.0, 0.0);
     float3 diagonal_AABB = float3(1.0, world_y / world_x, world_z / world_x);
     float3 c_low = -0.5 * diagonal_AABB;
     float3 c_high = 0.5 * diagonal_AABB;
-    t = ray_AABB_intersection_2(rd, rp, c_low, c_high);
-    // t = ray_sphere_intersection(rd, rp, float3(0.0, 0.0, 0.0), 1.0);
-    if (t > 0) {
-        path_L = float3(1.0-exp(-0.1*t), t, 0.0);
+    t = ray_AABB_intersection(rd, rp, c_low, c_high);
+    if (t.x > 0) {
+        path_L.g = 1.0-exp(-0.1*(t.y-t.x));
+    }
+    t.x += RAY_EPSILON;
+    t.y -= RAY_EPSILON;
+
+    float3 r0 = coord_normalized_to_texture(rp + t.x * rd, c_low, c_high, float3(world_x, world_y, world_z));
+    float3 r1 = coord_normalized_to_texture(rp + t.y * rd, c_low, c_high, float3(world_x, world_y, world_z));
+    rp = r0;
+    rd = r1 - r0;
+    int iSteps = int(0.5 * length(rd));
+    float3 dd = rd / float(iSteps);
+    for (int i = 0; i < iSteps; ++i) {
+        path_L.r += tex_trace[uint3(rp)].r;
+        rp += dd;
     }
 
     // // Reinhard tone mapping
@@ -214,5 +194,6 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     // // Average values over time.
     // tex[p] = float4(final_color, 1.0f) / float(step) + tex[p] * float(step - 1) / float(step);
 
-    tex_accumulator[pixel_xy] = float4(path_L.r, 0.0, 0.0, 1.0);
+    float val = 1.0 - exp(-sample_weight*path_L.r);
+    tex_accumulator[pixel_xy] = float4(val, val, val, 1.0);
 }

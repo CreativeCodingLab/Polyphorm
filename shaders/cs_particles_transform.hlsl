@@ -81,7 +81,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 group_id : SV_GroupID,
     in_posf.xyz = (2.0 * in_posf.xyz - 1.0.xxx) * float3(1.0, world_height / world_width, world_depth / world_width);
     in_posf.yz *= -1; // Invert yz axis because the direction is different for textures and standard right handed system.
 
-    // Project into 3D scene world space.        
+    // Project into 3D scene world space.
     float4 world_pos = mul(view_matrix, in_posf);
 
     // Project from 3D to 2D.
