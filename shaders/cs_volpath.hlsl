@@ -6,6 +6,8 @@
 
 RWTexture2D<float4> tex_accumulator: register(u0);
 RWTexture3D<half4> tex_trace: register(u1);
+Texture2D tex_false_color : register(t2);
+SamplerState tex_false_color_sampler : register(s2);
 
 cbuffer ConfigBuffer : register(b4)
 {
@@ -36,6 +38,10 @@ cbuffer ConfigBuffer : register(b4)
     float camera_y;
     float camera_z;
     int pt_iteration;
+    float sigma_s;
+    float sigma_a;
+    float sigma_e;
+    float trace_max;
 };
 
 struct RNG {
@@ -129,6 +135,13 @@ float3 coord_normalized_to_texture(float3 coord, float3 c_lo, float3 c_hi, float
     return coord_rel * size;
 }
 
+float remap(float val, float slope) {
+	return 1.0 - exp(-slope * val);
+}
+float3 tonemap(float3 L, float exposure) {
+	return float3(1.0, 1.0, 1.0) - exp(-exposure * L);
+}
+
 [numthreads(PT_GROUP_SIZE_X, PT_GROUP_SIZE_Y, 1)]
 void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
           uint3 dispatchThreadId : SV_DispatchThreadID){
@@ -183,17 +196,16 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     int iSteps = int(0.5 * length(rd));
     float3 dd = rd / float(iSteps);
     for (int i = 0; i < iSteps; ++i) {
-        path_L.r += tex_trace[uint3(rp)].r;
+        float trace = tex_trace[uint3(rp)].r;
+        float t = (trace - trim_density) * sample_weight;
+        t /= 5.0;
+        float3 emission = tex_false_color.SampleLevel(tex_false_color_sampler, float2(remap(t, 1.0), 0.5), 0).rgb;
+        path_L += sigma_e * emission;
         rp += dd;
     }
-
-    // // Reinhard tone mapping
-    // float l = dot(float3(0.2126, 0.7152, 0.0722), final_color);
-    // final_color /= l + 1;
 
     // // Average values over time.
     // tex[p] = float4(final_color, 1.0f) / float(step) + tex[p] * float(step - 1) / float(step);
 
-    float val = 1.0 - exp(-sample_weight*path_L.r);
-    tex_accumulator[pixel_xy] = float4(val, val, val, 1.0);
+    tex_accumulator[pixel_xy] = float4(tonemap(path_L, galaxy_weight), 1.0);
 }

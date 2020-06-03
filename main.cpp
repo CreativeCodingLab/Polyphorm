@@ -193,6 +193,10 @@ struct RenderingConfig {
     float camera_z;
     int pt_iteration;
 
+    float sigma_s;
+    float sigma_a;
+    float sigma_e;
+    float trace_max;
 };
 
 struct StatisticsConfig {
@@ -617,6 +621,10 @@ int main(int argc, char **argv)
     rendering_config.camera_y = eye_pos.y;
     rendering_config.camera_z = eye_pos.z;
     rendering_config.pt_iteration = 0;
+    rendering_config.sigma_s = 0.01;
+    rendering_config.sigma_a = 0.005;
+    rendering_config.sigma_e = 0.01;
+    rendering_config.trace_max = 100.0;
     ConstantBuffer rendering_settings_buffer = graphics::get_constant_buffer(sizeof(RenderingConfig));
     graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
     graphics::set_constant_buffer(&rendering_settings_buffer, 4);
@@ -1042,12 +1050,15 @@ int main(int argc, char **argv)
                 graphics::set_compute_shader(&cs_volpath);
                 graphics::set_texture_compute(&display_tex, 0);
                 graphics::set_texture_compute(&trace_tex, 1);
+                graphics::set_texture_sampled_compute(&false_color_tex, 2);
+                graphics::set_texture_sampler_compute(&tex_sampler_false_color, 2);
                 graphics::run_compute(
                     rendering_config.screen_width / int(PT_GROUP_SIZE_X),
                     rendering_config.screen_height / int(PT_GROUP_SIZE_Y),
                     1);
                 graphics::unset_texture_compute(0);
                 graphics::unset_texture_compute(1);
+                graphics::unset_texture_sampled_compute(2);
 
                 graphics::set_vertex_shader(&vertex_shader_2d);
                 graphics::set_pixel_shader(&ps_volpath);
@@ -1309,6 +1320,15 @@ int main(int argc, char **argv)
             is_toggled = vis_mode == VisualizationMode::VM_PATH_TRACING;
             ui::add_toggle(&panel, "VIS: PATH TRACING", &is_toggled);
             vis_mode = is_toggled? VisualizationMode::VM_PATH_TRACING : vis_mode;
+
+            if (vis_mode == VisualizationMode::VM_PATH_TRACING) {
+                ui::add_slider(&panel, "SIGMA_S", &rendering_config.sigma_s, 0.0, 1.0);
+                ui::add_slider(&panel, "SIGMA_A", &rendering_config.sigma_a, 0.0, 1.0);
+                ui::add_slider(&panel, "SIGMA_E", &rendering_config.sigma_e, 0.0, 1.0);
+                float trmax = log(rendering_config.trace_max) / log(HISTOGRAM_BASE);
+                ui::add_slider(&panel, "TRACE_MAX", &trmax, -5.0, 9.0);
+                rendering_config.trace_max = math::pow(HISTOGRAM_BASE, trmax);
+            }
 
             ui::end_panel(&panel);
             ui::end();

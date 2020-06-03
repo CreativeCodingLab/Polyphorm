@@ -666,6 +666,11 @@ void graphics::set_texture_compute(Texture2D *texture, uint32_t slot)
 	graphics_context->context->CSSetUnorderedAccessViews(slot, 1, &texture->ua_view, &init_counts);
 }
 
+void graphics::set_texture_sampled_compute(Texture2D *texture, uint32_t slot)
+{
+	graphics_context->context->CSSetShaderResources(slot, 1, &texture->sr_view);
+}
+
 void graphics::set_texture_compute(Texture3D *texture, uint32_t slot)
 {
 	UINT init_counts = 0;
@@ -677,6 +682,12 @@ void graphics::unset_texture_compute(uint32_t slot)
 	UINT init_counts = 0;
 	ID3D11UnorderedAccessView *null[] = { NULL };
 	graphics_context->context->CSSetUnorderedAccessViews(slot, 1, null, &init_counts);
+}
+
+void graphics::unset_texture_sampled_compute(uint32_t slot)
+{
+	ID3D11ShaderResourceView *null[] = { NULL };
+	graphics_context->context->CSSetShaderResources(slot, 1, null);
 }
 
 void graphics::set_blend_state(BlendType type)
@@ -733,6 +744,11 @@ TextureSampler graphics::get_texture_sampler(SampleMode mode, D3D11_FILTER filte
 void graphics::set_texture_sampler(TextureSampler *sampler, uint32_t slot) 
 {
 	graphics_context->context->PSSetSamplers(slot, 1, &sampler->sampler);
+}
+
+void graphics::set_texture_sampler_compute(TextureSampler *sampler, uint32_t slot) 
+{
+	graphics_context->context->CSSetSamplers(slot, 1, &sampler->sampler);
 }
 
 

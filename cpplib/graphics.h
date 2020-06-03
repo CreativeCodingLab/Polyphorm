@@ -250,9 +250,11 @@ namespace graphics
 
 	// Set texture to be accessible from compute shaders
 	void set_texture_compute(Texture2D *texture, uint32_t slot);
+	void set_texture_sampled_compute(Texture2D *texture, uint32_t slot);
 
 	// Clear specific compute texture slot.
 	void unset_texture_compute(uint32_t slot);
+	void unset_texture_sampled_compute(uint32_t slot);
 
 	// Clear specific texture slot
 	void unset_texture(uint32_t slot);
@@ -296,6 +298,7 @@ namespace graphics
 
 	// Set TextureSampler to specific slot
 	void set_texture_sampler(TextureSampler *sampler, uint32_t slot);
+	void set_texture_sampler_compute(TextureSampler *sampler, uint32_t slot);
 
 	// Get Mesh based on mesh data
 	Mesh get_mesh(void *vertices, uint32_t vertex_count, uint32_t vertex_stride, void *indices, uint32_t index_count,
