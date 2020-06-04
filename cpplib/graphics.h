@@ -280,6 +280,7 @@ namespace graphics
 
 	// Set texture to be accessible from compute shaders
 	void set_texture_compute(Texture3D *texture, uint32_t slot);
+	void set_texture_sampled_compute(Texture3D *texture, uint32_t slot);
 
 	// Set blending state
 	void set_blend_state(BlendType type);

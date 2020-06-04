@@ -677,6 +677,11 @@ void graphics::set_texture_compute(Texture3D *texture, uint32_t slot)
 	graphics_context->context->CSSetUnorderedAccessViews(slot, 1, &texture->ua_view, &init_counts);
 }
 
+void graphics::set_texture_sampled_compute(Texture3D *texture, uint32_t slot)
+{
+	graphics_context->context->CSSetShaderResources(slot, 1, &texture->sr_view);
+}
+
 void graphics::unset_texture_compute(uint32_t slot)
 {
 	UINT init_counts = 0;

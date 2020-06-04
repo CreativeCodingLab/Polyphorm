@@ -32,7 +32,7 @@
 #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
 //#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_huge_t=10.3"
 //#define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
-#define FALSE_COLOR_PALETTE "data/palette_sunset3.tga"
+#define FALSE_COLOR_PALETTE "data/palette_hot.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 2.55;
 const float MOVE_ANGLE = 10.0;
@@ -613,7 +613,7 @@ int main(int argc, char **argv)
     rendering_config.sample_weight = 0.1;
     rendering_config.optical_thickness = 0.05;
     rendering_config.highlight_density = 10.0;
-    rendering_config.galaxy_weight = 0.1;
+    rendering_config.galaxy_weight = 0.25;
     rendering_config.histogram_base = HISTOGRAM_BASE;
     rendering_config.overdensity_threshold_low = 1.0;
     rendering_config.overdensity_threshold_high = 10.0;
@@ -621,9 +621,9 @@ int main(int argc, char **argv)
     rendering_config.camera_y = eye_pos.y;
     rendering_config.camera_z = eye_pos.z;
     rendering_config.pt_iteration = 0;
-    rendering_config.sigma_s = 0.01;
-    rendering_config.sigma_a = 0.005;
-    rendering_config.sigma_e = 0.01;
+    rendering_config.sigma_s = 0.0;
+    rendering_config.sigma_a = 0.5;
+    rendering_config.sigma_e = 1.0;
     rendering_config.trace_max = 100.0;
     ConstantBuffer rendering_settings_buffer = graphics::get_constant_buffer(sizeof(RenderingConfig));
     graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
@@ -679,6 +679,7 @@ int main(int argc, char **argv)
     bool make_screenshot = false;
     bool capture_agents = false;
     bool compute_histogram = true;
+    bool reset_pt = false;
     float background_color = 0.0;
     VisualizationMode vis_mode = VisualizationMode::VM_PARTICLES;
 
@@ -708,21 +709,26 @@ int main(int argc, char **argv)
         // React to inputs
         {
             if(!ui::is_registering_input()) {
+                if (math::abs(input::mouse_scroll_delta()) > 0)
+                    reset_pt = true;
                 radius = math::max(radius - input::mouse_scroll_delta() * 0.1, 0.01);
                 if (input::mouse_left_button_down()) {
                     Vector2 dm = input::mouse_delta_position();
                     azimuth -= dm.x * 0.003;
                     polar -= dm.y * 0.003;
                     polar = math::clamp(polar, 0.01f, math::PI-0.01f);
+                    reset_pt = true;
                 }
                 if (input::mouse_right_button_down()) {
                     Vector2 dm = input::mouse_delta_position();
                     camera_offset.x += radius * 0.03 * CAM_OFFSET * dm.x;
                     camera_offset.y -= radius * 0.03 * CAM_OFFSET * dm.y;
+                    reset_pt = true;
                 }
             }
             if (turning_camera) {
                 azimuth += 0.01;
+                reset_pt = true;
             }
             eye_pos = Vector3(
                 math::cos(azimuth) * math::sin(polar),
@@ -1043,13 +1049,16 @@ int main(int argc, char **argv)
                 graphics::unset_texture(1);
             }
             else if (vis_mode == VisualizationMode::VM_PATH_TRACING) {
-                rendering_config.pt_iteration++;
-                float clear_tex_float[4] = {0.0, 0.0, 0.0, 0.0};
-                graphics_context->context->ClearUnorderedAccessViewFloat(display_tex.ua_view, clear_tex_float);
+                if (reset_pt) {
+                    reset_pt = false;
+                    rendering_config.pt_iteration = 0;
+                }
+
                 graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
                 graphics::set_compute_shader(&cs_volpath);
                 graphics::set_texture_compute(&display_tex, 0);
-                graphics::set_texture_compute(&trace_tex, 1);
+                graphics::set_texture_sampled_compute(&trace_tex, 1);
+                graphics::set_texture_sampler_compute(&tex_sampler_trace, 1);
                 graphics::set_texture_sampled_compute(&false_color_tex, 2);
                 graphics::set_texture_sampler_compute(&tex_sampler_false_color, 2);
                 graphics::run_compute(
@@ -1057,7 +1066,7 @@ int main(int argc, char **argv)
                     rendering_config.screen_height / int(PT_GROUP_SIZE_Y),
                     1);
                 graphics::unset_texture_compute(0);
-                graphics::unset_texture_compute(1);
+                graphics::unset_texture_sampled_compute(1);
                 graphics::unset_texture_sampled_compute(2);
 
                 graphics::set_vertex_shader(&vertex_shader_2d);
@@ -1066,6 +1075,8 @@ int main(int argc, char **argv)
                 graphics::set_texture_sampler(&tex_sampler_display, 0);
                 graphics::draw_mesh(&quad_mesh);
                 graphics::unset_texture(0);
+
+                rendering_config.pt_iteration++;
             }
         }
 
@@ -1322,11 +1333,15 @@ int main(int argc, char **argv)
             vis_mode = is_toggled? VisualizationMode::VM_PATH_TRACING : vis_mode;
 
             if (vis_mode == VisualizationMode::VM_PATH_TRACING) {
-                ui::add_slider(&panel, "SIGMA_S", &rendering_config.sigma_s, 0.0, 1.0);
-                ui::add_slider(&panel, "SIGMA_A", &rendering_config.sigma_a, 0.0, 1.0);
-                ui::add_slider(&panel, "SIGMA_E", &rendering_config.sigma_e, 0.0, 1.0);
+                float sigma_t = rendering_config.sigma_a + rendering_config.sigma_s;
+                float albedo = sigma_t < 1.e-5 ? 0.0 : rendering_config.sigma_s / sigma_t;
+                ui::add_slider(&panel, "SIGMA_T", &sigma_t, 0.0, 5.0);
+                ui::add_slider(&panel, "ALBEDO", &albedo, 0.0, 0.99);
+                rendering_config.sigma_a = (1.0 - albedo) * sigma_t;
+                rendering_config.sigma_s = albedo * sigma_t;
+                ui::add_slider(&panel, "SIGMA_E", &rendering_config.sigma_e, 0.0, 50.0);
                 float trmax = log(rendering_config.trace_max) / log(HISTOGRAM_BASE);
-                ui::add_slider(&panel, "TRACE_MAX", &trmax, -5.0, 9.0);
+                ui::add_slider(&panel, "TRACE_MAX", &trmax, 0.0, 4.0);
                 rendering_config.trace_max = math::pow(HISTOGRAM_BASE, trmax);
             }
 
