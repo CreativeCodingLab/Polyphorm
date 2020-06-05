@@ -2,12 +2,13 @@
 #define PT_GROUP_SIZE_Y 10
 #define PI 3.141592
 #define PI2 (2.0*PI)
-#define RAY_EPSILON 1.e-5
+#define RAY_EPSILON 1.e-4
 #define INTENSITY_EPSILON 1.e-4
 
-// Behavioral flags
+// Control flags
 #define TEMPORAL_ACCUMULATION
 #define RUSSIAN_ROULETTE
+// #define RAYMARCH_ORDER1
 
 RWTexture2D<float4> tex_accumulator: register(u0);
 Texture3D tex_trace : register(t1);
@@ -166,7 +167,7 @@ float delta_step(float rho_max_inv, float xi) {
 	return -log(max(xi, 0.001)) * rho_max_inv;
 }
 
-float3 delta_tracking(float3 rp, float3 rd, float t_max, float rho_max_inv, inout RNG rng, out float event_rho) {
+float3 delta_tracking(float3 rp, float3 rd, float t_max, float rho_max_inv, inout RNG rng, inout float event_rho) {
 	float sigma_max_inv = rho_max_inv / (sigma_a + sigma_s);
     float t = 0.0;
 	do {
@@ -183,25 +184,25 @@ float3 get_incident_L(float3 rp, float3 rd, float rho_max_inv, float3 c_low, flo
     float throughput = 1.0;
     float albedo = sigma_s / (sigma_a + sigma_s);
     for (int n = 0; n < nBounces; ++n) {
-        // Sample new direction
-        float3 rd_new = uniform_unit_sphere(rng);
-
         // Sample collision distance
-        float event_rho;
-        float t_max = ray_AABB_intersection(rp, rd_new, c_low, c_high);
-        float3 rp_new = delta_tracking(rp, rd_new, t_max, rho_max_inv, rng, event_rho);
+        float event_rho = 0.0;
+        float2 t = ray_AABB_intersection(rp, rd, c_low, c_high);
+        float3 rp_new = delta_tracking(rp, rd, t.y, rho_max_inv, rng, event_rho);
 
         // Get locally emitted light
         float3 emission = get_emitted_L(event_rho);
         L += throughput * event_rho * sigma_e * emission;
 
-        // Continue with the next bounce
+        // Adjust the path throughput (RR or modulate)
         #ifdef RUSSIAN_ROULETTE
         if (rng.random_float() > albedo)
             return L;
         #else
         throughput *= albedo;
         #endif
+
+        // Sample new direction and continue the walk
+        rd = uniform_unit_sphere(rng);
     }
 
     return L;
@@ -246,49 +247,56 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     float3 rd = normalize(screen_pos - rp);
 
     // Get intersection of the ray with the volume AABB
+    float3 path_L = float3(0.0, 0.0, 0.0);
     float2 t = 0.0;
     float3 diagonal_AABB = float3(1.0, grid_y / grid_x, grid_z / grid_x);
     float3 c_low = -0.5 * diagonal_AABB;
     float3 c_high = 0.5 * diagonal_AABB;
     t = ray_AABB_intersection(rp, rd, c_low, c_high);
-    t.x += RAY_EPSILON;
-    t.y -= RAY_EPSILON;
+    if (t.y >= 0) {
+        t.x += RAY_EPSILON;
+        t.y -= RAY_EPSILON;
 
-    uint nBounces = uint(100 * optical_thickness);
-    const uint subsampling = 10;
+        // Integrate along the ray segment that intersects the AABB
+        float3 r0 = coord_normalized_to_texture(rp + t.x * rd, c_low, c_high, float3(grid_x, grid_y, grid_z));
+        float3 r1 = coord_normalized_to_texture(rp + t.y * rd, c_low, c_high, float3(grid_x, grid_y, grid_z));
+        rp = r0;
+        rd = r1 - r0;
+        uint nBounces = uint(100.0 * optical_thickness);
+        float rho_max_inv = 1.0 / trace_to_rho(trace_max);
 
-    // Integrate along the ray segment that intersects the AABB
-    float3 r0 = coord_normalized_to_texture(rp + t.x * rd, c_low, c_high, float3(grid_x, grid_y, grid_z));
-    float3 r1 = coord_normalized_to_texture(rp + t.y * rd, c_low, c_high, float3(grid_x, grid_y, grid_z));
-    rp = r0;
-    rd = r1 - r0;
-    int iSteps = int(length(rd));
-    float3 dd = rd / float(iSteps);
-    rd = normalize(rd);
+        #ifdef RAYMARCH_ORDER1
+        int iSteps = int(length(rd));
+        float3 dd = rd / float(iSteps);
+        rd = normalize(rd);
+        float tau = 0.0;
+        rp += (rng.random_float() - 0.5) * dd;
+        float rho0 = get_rho(rp), rho1;
+        uint subsampling = min(nBounces, 1);
+        for (int i = 0; i < iSteps; ++i) {
+            rp += dd;
+            rho1 = get_rho(rp);
+            float rho = 0.5 * (rho0 + rho1);
 
-    float3 path_L = float3(0.0, 0.0, 0.0);
-    float tau = 0.0;
-    rp += (rng.random_float() - 0.5) * dd;
-    float rho0 = get_rho(rp);
-    float rho1;
-    float rho_max_inv = 1.0 / trace_to_rho(trace_max);
-    for (int i = 0; i < iSteps; ++i) {
-        rp += dd;
-        rho1 = get_rho(rp);
-        float rho = 0.5 * (rho0 + rho1);
+            tau += rho;
+            float transmittance = exp(-(sigma_a + sigma_s) * tau);
 
-        tau += rho;
-        float transmittance = exp(-(sigma_a + sigma_s) * tau);
+            float3 emission = sigma_e * get_emitted_L(rho);
+            float3 scattering = float3(0.0, 0.0, 0.0);
+            if (sigma_s > INTENSITY_EPSILON && rng.random_float() < 1.0 / float(subsampling)) {
+                float3 rd_new = uniform_unit_sphere(rng);
+                scattering = sigma_s * get_incident_L(rp - rng.random_float() * dd, rd_new, rho_max_inv, c_low, c_high, nBounces, rng);
+            }
 
-        float3 emission = sigma_e * get_emitted_L(rho);
-        float3 scattering = float3(0.0, 0.0, 0.0);
-        if (sigma_s > INTENSITY_EPSILON && rng.random_float() < 1.0 / float(subsampling))
-            scattering = sigma_s * get_incident_L(rp - rng.random_float() * dd, rd, rho_max_inv, c_low, c_high, nBounces, rng);
-
-        path_L += transmittance * (emission + scattering) * rho;
-        rho0 = rho1;
+            path_L += transmittance * (emission + scattering) * rho;
+            rho0 = rho1;
+        }
+        #else
+        rd = normalize(rd);
+        path_L = get_incident_L(rp, rd, rho_max_inv, c_low, c_high, nBounces, rng);
+        #endif
     }
-    
+
     // Write out results for the current iteration
     #ifdef TEMPORAL_ACCUMULATION
     float4 current_value = tex_accumulator[pixel_xy];

@@ -32,7 +32,7 @@
 #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
 //#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_huge_t=10.3"
 //#define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
-#define FALSE_COLOR_PALETTE "data/palette_hot.tga"
+#define FALSE_COLOR_PALETTE "data/palette_gogh1.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 2.55;
 const float MOVE_ANGLE = 10.0;
