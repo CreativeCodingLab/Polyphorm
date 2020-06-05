@@ -259,9 +259,15 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
     particle_weight = w_f * particle_weight + (1.0-w_f) * current_deposit;
     #ifdef AGENT_REROUTING
     if (particle_weight < thr_f) {
-        x = rng.random_float() * world_width;
-        y = rng.random_float() * world_height;
-        z = rng.random_float() * world_depth;
+        // x = rng.random_float() * world_width;
+        // y = rng.random_float() * world_height;
+        // z = rng.random_float() * world_depth;
+        // Experimental !!!
+        int data_index = int(rng.random_float() * float(n_data_points));
+        float world_max_dim = max(max(world_width, world_height), world_depth);
+        x = particles_x[data_index] + (rng.random_float()-0.5) * 0.03 * world_max_dim;
+        y = particles_y[data_index] + (rng.random_float()-0.5) * 0.03 * world_max_dim;
+        z = particles_z[data_index] + (rng.random_float()-0.5) * 0.03 * world_max_dim;
         particle_weight = deposit_value;
     }
     #endif
