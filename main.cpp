@@ -32,7 +32,7 @@
 #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
 //#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_huge_t=10.3"
 //#define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
-#define FALSE_COLOR_PALETTE "data/palette_gogh1.tga"
+#define FALSE_COLOR_PALETTE "data/palette_coldhot.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 2.55;
 const float MOVE_ANGLE = 10.0;
@@ -197,6 +197,11 @@ struct RenderingConfig {
     float sigma_a;
     float sigma_e;
     float trace_max;
+
+    float camera_offset_x;
+    float camera_offset_y;
+    float exposure;
+    int n_bounces;
 };
 
 struct StatisticsConfig {
@@ -611,7 +616,7 @@ int main(int argc, char **argv)
     rendering_config.screen_width = (float)window_width;
     rendering_config.screen_height = (float)window_height;
     rendering_config.sample_weight = 0.1;
-    rendering_config.optical_thickness = 0.05;
+    rendering_config.optical_thickness = 0.25;
     rendering_config.highlight_density = 10.0;
     rendering_config.galaxy_weight = 0.25;
     rendering_config.histogram_base = HISTOGRAM_BASE;
@@ -625,6 +630,10 @@ int main(int argc, char **argv)
     rendering_config.sigma_a = 0.5;
     rendering_config.sigma_e = 1.0;
     rendering_config.trace_max = 100.0;
+    rendering_config.camera_offset_x = 0.0;
+    rendering_config.camera_offset_y = 0.0;
+    rendering_config.exposure = 1.0;
+    rendering_config.n_bounces = 3;
     ConstantBuffer rendering_settings_buffer = graphics::get_constant_buffer(sizeof(RenderingConfig));
     graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
     graphics::set_constant_buffer(&rendering_settings_buffer, 4);
@@ -739,6 +748,8 @@ int main(int argc, char **argv)
             rendering_config.camera_x = eye_pos.x;
             rendering_config.camera_y = eye_pos.y;
             rendering_config.camera_z = eye_pos.z;
+            rendering_config.camera_offset_x = camera_offset.x;
+            rendering_config.camera_offset_y = camera_offset.y;
             // if (CAMERA_FOV <= 0.0)
                 // rendering_config.projection = math::get_orthographics_projection_dx_rh(-0.28 * radius * aspect_ratio, 0.28 * radius * aspect_ratio, -0.28 * radius, 0.28 * radius, 0.01, 10.0);
 
@@ -1335,14 +1346,21 @@ int main(int argc, char **argv)
             if (vis_mode == VisualizationMode::VM_PATH_TRACING) {
                 float sigma_t = rendering_config.sigma_a + rendering_config.sigma_s;
                 float albedo = sigma_t < 1.e-5 ? 0.0 : rendering_config.sigma_s / sigma_t;
-                ui::add_slider(&panel, "SIGMA_T", &sigma_t, 0.0, 5.0);
-                ui::add_slider(&panel, "ALBEDO", &albedo, 0.0, 0.99);
+                reset_pt = ui::add_slider(&panel, "SIGMA_T", &sigma_t, 0.0, 1.0);
+                reset_pt = ui::add_slider(&panel, "ALBEDO", &albedo, 0.0, 0.99);
                 rendering_config.sigma_a = (1.0 - albedo) * sigma_t;
                 rendering_config.sigma_s = albedo * sigma_t;
-                ui::add_slider(&panel, "SIGMA_E", &rendering_config.sigma_e, 0.0, 50.0);
+                reset_pt = ui::add_slider(&panel, "SIGMA_E", &rendering_config.sigma_e, 0.0, 100.0);
                 float trmax = log(rendering_config.trace_max) / log(HISTOGRAM_BASE);
-                ui::add_slider(&panel, "TRACE_MAX", &trmax, 0.0, 4.0);
+                reset_pt = ui::add_slider(&panel, "TRACE_MAX", &trmax, -4.0, 4.0);
                 rendering_config.trace_max = math::pow(HISTOGRAM_BASE, trmax);
+
+                float expo = log(rendering_config.exposure) / log(10.0);
+                reset_pt = ui::add_slider(&panel, "EXPOSURE", &expo, -5.0, 5.0);
+                rendering_config.exposure = math::pow(10.0, expo);
+                float f_bounces = float(rendering_config.n_bounces);
+                reset_pt = ui::add_slider(&panel, "N BOUNCES", &f_bounces, 0.0, 10.0);
+                rendering_config.n_bounces = int(f_bounces);
             }
 
             ui::end_panel(&panel);

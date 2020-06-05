@@ -49,6 +49,10 @@ cbuffer ConfigBuffer : register(b4)
     float sigma_a;
     float sigma_e;
     float trace_max;
+    float camera_offset_x;
+    float camera_offset_y;
+    float exposure;
+    int n_bounces;
 };
 
 struct RNG {
@@ -89,7 +93,7 @@ struct RNG {
     }
 };
 
-float3 uniform_unit_sphere(RNG rng) {
+float3 uniform_unit_sphere(inout RNG rng) {
     float azimuth = rng.random_float() * PI2;
 	float polar = acos(2.0 * rng.random_float() - 1.0);
 	float r = pow(rng.random_float(), 1.0/3.0);
@@ -150,8 +154,7 @@ float3 tonemap(float3 L, float exposure) {
 }
 
 float trace_to_rho(float trace) {
-    float rho = max(trace - trim_density, 0.0) * sample_weight;
-    return rho / 5.0; // !!!
+    return max(trace - trim_density, 0.0) * sample_weight;
 }
 
 float get_rho(float3 rp) {
@@ -163,31 +166,32 @@ float3 get_emitted_L(float rho) {
     return rho * tex_false_color.SampleLevel(tex_false_color_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
 }
 
-float delta_step(float rho_max_inv, float xi) {
-	return -log(max(xi, 0.001)) * rho_max_inv;
+float delta_step(float sigma_max_inv, float xi) {
+	return -log(max(xi, 0.001)) * sigma_max_inv;
 }
 
-float3 delta_tracking(float3 rp, float3 rd, float t_max, float rho_max_inv, inout RNG rng, inout float event_rho) {
+float3 delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
 	float sigma_max_inv = rho_max_inv / (sigma_a + sigma_s);
-    float t = 0.0;
+    float t = t_min;
+    float event_rho = 0.0;
 	do {
 		t += delta_step(sigma_max_inv, rng.random_float());
 		event_rho = get_rho(rp + t * rd);
-	} while (t <= t_max && event_rho * rho_max_inv < rng.random_float());
+	} while (t <= t_max && rng.random_float() > event_rho * rho_max_inv);
 
-	return rp + t * rd;
+	return rp + min(t, t_max) * rd;
 }
 
-float3 get_incident_L(float3 rp, float3 rd, float rho_max_inv, float3 c_low, float3 c_high, uint nBounces, inout RNG rng) {
-
+float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBounces, inout RNG rng) {
     float3 L = float3(0.0, 0.0, 0.0);
     float throughput = 1.0;
     float albedo = sigma_s / (sigma_a + sigma_s);
+    float rho_max_inv = 1.0 / trace_to_rho(trace_max);
     for (int n = 0; n < nBounces; ++n) {
         // Sample collision distance
-        float event_rho = 0.0;
         float2 t = ray_AABB_intersection(rp, rd, c_low, c_high);
-        float3 rp_new = delta_tracking(rp, rd, t.y, rho_max_inv, rng, event_rho);
+        rp = delta_tracking(rp, rd, 0.0, t.y, rho_max_inv, rng);
+        float event_rho = get_rho(rp);
 
         // Get locally emitted light
         float3 emission = get_emitted_L(event_rho);
@@ -204,7 +208,6 @@ float3 get_incident_L(float3 rp, float3 rd, float rho_max_inv, float3 c_low, flo
         // Sample new direction and continue the walk
         rd = uniform_unit_sphere(rng);
     }
-
     return L;
 }
 
@@ -221,8 +224,8 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     // Initialize RNG with a unique seed for each iteration
     RNG rng;
     rng.set_seed(
-        rng.wang_hash(73 * idx + 1),
-        rng.wang_hash(pixel_xy.x * pixel_xy.y * pt_iteration + 1)
+        rng.wang_hash(1 + 73 * idx),
+        rng.wang_hash(1 + pixel_xy.x * pixel_xy.y * (pt_iteration + 1))
     );
 
     // Compute x and y ray directions in "neutral" camera position.
@@ -232,7 +235,8 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     ry /= aspect_ratio;
 
     // Initialize ray origin and direction
-    float screen_distance = 4.5;
+    const float screen_distance = 4.5;
+    const float cam_offset_ratio = 0.45;
     float3 camera_pos = float3(camera_x, camera_y, camera_z);
     float3 camZ = normalize(-camera_pos);
     float3 camY = float3(0,0,1);
@@ -240,8 +244,8 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 	camY = normalize(cross(camX, camZ));
     float3 screen_pos =
         camera_pos
-        + rx * camX
-        + ry * camY
+        + (rx - cam_offset_ratio * camera_offset_x) * camX
+        + (ry - cam_offset_ratio * camera_offset_y) * camY
         + screen_distance * camZ;
     float3 rp = camera_pos;
     float3 rd = normalize(screen_pos - rp);
@@ -262,9 +266,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         float3 r1 = coord_normalized_to_texture(rp + t.y * rd, c_low, c_high, float3(grid_x, grid_y, grid_z));
         rp = r0;
         rd = r1 - r0;
-        uint nBounces = uint(100.0 * optical_thickness);
-        float rho_max_inv = 1.0 / trace_to_rho(trace_max);
-
+        
         #ifdef RAYMARCH_ORDER1
         int iSteps = int(length(rd));
         float3 dd = rd / float(iSteps);
@@ -272,7 +274,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         float tau = 0.0;
         rp += (rng.random_float() - 0.5) * dd;
         float rho0 = get_rho(rp), rho1;
-        uint subsampling = min(nBounces, 1);
+        int subsampling = min(n_bounces, 1);
         for (int i = 0; i < iSteps; ++i) {
             rp += dd;
             rho1 = get_rho(rp);
@@ -285,7 +287,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             float3 scattering = float3(0.0, 0.0, 0.0);
             if (sigma_s > INTENSITY_EPSILON && rng.random_float() < 1.0 / float(subsampling)) {
                 float3 rd_new = uniform_unit_sphere(rng);
-                scattering = sigma_s * get_incident_L(rp - rng.random_float() * dd, rd_new, rho_max_inv, c_low, c_high, nBounces, rng);
+                scattering = sigma_s * get_incident_L(rp - rng.random_float() * dd, rd_new, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces, rng);
             }
 
             path_L += transmittance * (emission + scattering) * rho;
@@ -293,7 +295,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         }
         #else
         rd = normalize(rd);
-        path_L = get_incident_L(rp, rd, rho_max_inv, c_low, c_high, nBounces, rng);
+        path_L = get_incident_L(rp, rd, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces + 1, rng);
         #endif
     }
 
@@ -302,8 +304,8 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     float4 current_value = tex_accumulator[pixel_xy];
     tex_accumulator[pixel_xy] =
         current_value * float(pt_iteration) / float(pt_iteration + 1)
-        + float4(tonemap(path_L, galaxy_weight), 1.0) / float(pt_iteration + 1);
+        + float4(tonemap(path_L, exposure), 1.0) / float(pt_iteration + 1);
     #else
-    tex_accumulator[pixel_xy] = float4(tonemap(path_L, galaxy_weight), 1.0);
+    tex_accumulator[pixel_xy] = float4(tonemap(path_L, exposure), 1.0);
     #endif
 }
