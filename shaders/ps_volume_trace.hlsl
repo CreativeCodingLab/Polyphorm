@@ -52,7 +52,7 @@ float4 main(PixelInput input) : SV_TARGET
     }
     else {
         float t = (trace - trim_density) * sample_weight;
-        t /= 5.0; // Compensate for the difference between Trace and Highlight vis modes
+        // t /= 5.0; // Compensate for the difference between Trace and Highlight vis modes
         fragment.rgb = tex_false_color.Sample(tex_false_color_sampler, float2(remap(t, 1.0), 0.5)).rgb;
     	fragment.a = optical_thickness * remap(t, 1.0);
 
