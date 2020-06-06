@@ -32,7 +32,7 @@
 #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
 //#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_huge_t=10.3"
 //#define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
-#define FALSE_COLOR_PALETTE "data/palette_coldhot.tga"
+#define FALSE_COLOR_PALETTE "data/palette_magneto2.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 2.55;
 const float MOVE_ANGLE = 10.0;
@@ -91,13 +91,13 @@ const float PERSISTENCE = 0.93;
 const float SAMPLING_EXPONENT = 3.5;
 #endif
 
-// Minor settings...
-const int32_t THREAD_GROUP_SIZE = 1000; // Divisible by 10! must align with settings inside the agent shader!
-const uint32_t N_HISTOGRAM_BINS = 16;
+// Other hardwired settings
+const int32_t THREAD_GROUP_SIZE = 1000; // Divisible by 10! Must align with settings inside the agent shader!
+const uint32_t N_HISTOGRAM_BINS = 16; // Must align with settings inside the histo shader!
+const int32_t PT_GROUP_SIZE_X = 10; // Must align with settings inside the PT shader!
+const int32_t PT_GROUP_SIZE_Y = 10; // Must align with settings inside the PT shader!
 const int32_t N_AGENTS_TO_CAPTURE = 1e3;
 const int32_t N_AGENT_TIMESTEPS_TO_CAPTURE = 10;
-const int32_t PT_GROUP_SIZE_X = 10;
-const int32_t PT_GROUP_SIZE_Y = 10;
 
 //====================================================================
 

@@ -151,6 +151,8 @@ float remap(float val, float slope) {
 }
 float3 tonemap(float3 L, float exposure) {
 	return float3(1.0, 1.0, 1.0) - exp(-exposure * L);
+    // return (1.0 - exp(-exposure*l)) * L;
+    // return L / float(l + 1.0);
 }
 
 float trace_to_rho(float trace) {
@@ -170,7 +172,7 @@ float delta_step(float sigma_max_inv, float xi) {
 	return -log(max(xi, 0.001)) * sigma_max_inv;
 }
 
-float3 delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
+float delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
 	float sigma_max_inv = rho_max_inv / (sigma_a + sigma_s);
     float t = t_min;
     float event_rho = 0.0;
@@ -179,7 +181,7 @@ float3 delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_
 		event_rho = get_rho(rp + t * rd);
 	} while (t <= t_max && rng.random_float() > event_rho * rho_max_inv);
 
-	return rp + min(t, t_max) * rd;
+	return t;
 }
 
 float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBounces, inout RNG rng) {
@@ -190,12 +192,15 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     for (int n = 0; n < nBounces; ++n) {
         // Sample collision distance
         float2 t = ray_AABB_intersection(rp, rd, c_low, c_high);
-        rp = delta_tracking(rp, rd, 0.0, t.y, rho_max_inv, rng);
-        float event_rho = get_rho(rp);
+        float t_event = delta_tracking(rp, rd, 0.0, t.y, rho_max_inv, rng);
+        if (t_event >= t.y)
+            return L;
+        rp += t_event * rd;
+        float rho_event = get_rho(rp);
 
         // Get locally emitted light
-        float3 emission = get_emitted_L(event_rho);
-        L += throughput * event_rho * sigma_e * emission;
+        float3 emission = get_emitted_L(rho_event);
+        L += throughput * rho_event * sigma_e * emission;
 
         // Adjust the path throughput (RR or modulate)
         #ifdef RUSSIAN_ROULETTE
@@ -274,7 +279,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         float tau = 0.0;
         rp += (rng.random_float() - 0.5) * dd;
         float rho0 = get_rho(rp), rho1;
-        int subsampling = min(n_bounces, 1);
+        int subsampling = 200 * min(n_bounces, 1);
         for (int i = 0; i < iSteps; ++i) {
             rp += dd;
             rho1 = get_rho(rp);
