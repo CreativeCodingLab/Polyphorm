@@ -56,6 +56,10 @@ cbuffer ConfigBuffer : register(b4)
     float camera_offset_y;
     float exposure;
     int n_bounces;
+    float ambient_trace;
+    int compressive_accumulation;
+    int dummy2;
+    int dummy3;
 };
 
 struct RNG {
@@ -157,7 +161,7 @@ float3 tonemap(float3 L, float exposure) {
 }
 
 float trace_to_rho(float trace) {
-    return max(trace - trim_density, 0.0) * sample_weight;
+    return max(trace + ambient_trace - trim_density, 0.0) * sample_weight;
 }
 
 float get_rho(float3 rp) {
@@ -316,13 +320,16 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         #endif
     }
 
+    // Accumulate LDR or HDR values?
+    path_L = (compressive_accumulation == 1) ? tonemap(path_L, exposure) : path_L;
+
     // Write out results for the current iteration
     #ifdef TEMPORAL_ACCUMULATION
     float4 current_value = tex_accumulator[pixel_xy];
     tex_accumulator[pixel_xy] =
         current_value * float(pt_iteration) / float(pt_iteration + 1)
-        + float4(tonemap(path_L, exposure), 1.0) / float(pt_iteration + 1);
+        + float4(path_L, 1.0) / float(pt_iteration + 1);
     #else
-    tex_accumulator[pixel_xy] = float4(tonemap(path_L, exposure), 1.0);
+    tex_accumulator[pixel_xy] = float4(path_L, 1.0);
     #endif
 }

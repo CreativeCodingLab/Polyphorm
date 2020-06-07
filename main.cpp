@@ -202,6 +202,11 @@ struct RenderingConfig {
     float camera_offset_y;
     float exposure;
     int n_bounces;
+
+    float ambient_trace;
+    int compressive_accumulation;
+    int dummy2;
+    int dummy3;
 };
 
 struct StatisticsConfig {
@@ -599,6 +604,7 @@ int main(int argc, char **argv)
     Vector3 camera_offset = Vector3(0.0, 0.0, 0.0);
     const float CAM_OFFSET = 0.05;
 
+    // Assign default rendering parameters
     RenderingConfig rendering_config = {};
     rendering_config.projection = projection_matrix;
     rendering_config.view = math::get_identity();
@@ -615,7 +621,7 @@ int main(int argc, char **argv)
     rendering_config.world_depth = (float)GRID_RESOLUTION_Z;
     rendering_config.screen_width = (float)window_width;
     rendering_config.screen_height = (float)window_height;
-    rendering_config.sample_weight = 0.1;
+    rendering_config.sample_weight = 0.025;
     rendering_config.optical_thickness = 0.25;
     rendering_config.highlight_density = 10.0;
     rendering_config.galaxy_weight = 0.25;
@@ -634,10 +640,13 @@ int main(int argc, char **argv)
     rendering_config.camera_offset_y = 0.0;
     rendering_config.exposure = 1.0;
     rendering_config.n_bounces = 3;
+    rendering_config.ambient_trace = 0.0;
+    rendering_config.compressive_accumulation = 1;
     ConstantBuffer rendering_settings_buffer = graphics::get_constant_buffer(sizeof(RenderingConfig));
     graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
     graphics::set_constant_buffer(&rendering_settings_buffer, 4);
 
+    // Assign default simulation parameters
     SimulationConfig simulation_config = {};
     simulation_config.sense_spread = math::deg2rad(SENSE_SPREAD);
     simulation_config.sense_distance = measure_world_to_grid(SENSE_DISTANCE, WORLD_SIZE_X, float(GRID_RESOLUTION_X));
@@ -655,6 +664,7 @@ int main(int argc, char **argv)
     simulation_config.n_agents = NUM_AGENTS;
     ConstantBuffer config_buffer = graphics::get_constant_buffer(sizeof(SimulationConfig));
 
+    // Assign default misc parameters
     StatisticsConfig statistics_config = {};
     statistics_config.n_histo_bins = N_HISTOGRAM_BINS;
     statistics_config.n_data_points = data_count;
@@ -696,10 +706,13 @@ int main(int argc, char **argv)
     {
         static float sec_per_frame_amortized = 0.0;
         sec_per_frame_amortized = 0.9 * sec_per_frame_amortized + 0.1 * timer::checkpoint(&timer);
-        std::ostringstream ss_timer;
-        ss_timer.precision(3);
-        ss_timer << "Polyphorm [" << 1000.0 * sec_per_frame_amortized << " ms/frame]";
-        platform::set_window_title(window, ss_timer.str().c_str());
+        std::ostringstream window_title;
+        window_title.precision(3);
+        window_title << "Polyphorm [ " << 1000.0 * sec_per_frame_amortized << " ms/frame";
+        if (vis_mode == VisualizationMode::VM_PATH_TRACING)
+            window_title << " | " << rendering_config.pt_iteration << " spp";
+        window_title << " ]";
+        platform::set_window_title(window, window_title.str().c_str());
         
         // Event loop
         input::reset();
@@ -726,13 +739,13 @@ int main(int argc, char **argv)
                     azimuth -= dm.x * 0.003;
                     polar -= dm.y * 0.003;
                     polar = math::clamp(polar, 0.01f, math::PI-0.01f);
-                    reset_pt = true;
+                    reset_pt = (dm.x > 0 || dm.y > 0);
                 }
                 if (input::mouse_right_button_down()) {
                     Vector2 dm = input::mouse_delta_position();
                     camera_offset.x += radius * 0.03 * CAM_OFFSET * dm.x;
                     camera_offset.y -= radius * 0.03 * CAM_OFFSET * dm.y;
-                    reset_pt = true;
+                    reset_pt = (dm.x > 0 || dm.y > 0);
                 }
             }
             if (turning_camera) {
@@ -1064,7 +1077,6 @@ int main(int argc, char **argv)
                     reset_pt = false;
                     rendering_config.pt_iteration = 0;
                 }
-
                 graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
                 graphics::set_compute_shader(&cs_volpath);
                 graphics::set_texture_compute(&display_tex, 0);
@@ -1261,40 +1273,26 @@ int main(int argc, char **argv)
             const float smoothing_coef = 0.9;
 
             float ss = math::rad2deg(simulation_config.sense_spread);
-            ui::add_slider(&panel, "SENSE ANGLE [DEG]", &ss, 0.0, 90.0);
+            reset_pt |= ui::add_slider(&panel, "SENSE ANGLE [DEG]", &ss, 0.0, 90.0);
             simulation_config.sense_spread = math::deg2rad(ss);
             float sd_mpc = measure_grid_to_world(simulation_config.sense_distance, WORLD_SIZE_X, float(GRID_RESOLUTION_X));
-            ui::add_slider(&panel, "SENSE DIST [MPC]", &sd_mpc, 0.0, 10.0);
+            reset_pt |= ui::add_slider(&panel, "SENSE DIST [MPC]", &sd_mpc, 0.0, 10.0);
             simulation_config.sense_distance = measure_world_to_grid(sd_mpc, WORLD_SIZE_X, float(GRID_RESOLUTION_X));
             float ts = math::rad2deg(simulation_config.turn_angle);
-            ui::add_slider(&panel, "MOVE ANGLE [DEG]", &ts, 0.0, 45.0);
+            reset_pt |= ui::add_slider(&panel, "MOVE ANGLE [DEG]", &ts, 0.0, 45.0);
             simulation_config.turn_angle = math::deg2rad(ts);
             float md_mpc = measure_grid_to_world(simulation_config.move_distance, WORLD_SIZE_X, float(GRID_RESOLUTION_X));
-            ui::add_slider(&panel, "MOVE DIST [MPC]", &md_mpc, 0.0, 1.0);
+            reset_pt |= ui::add_slider(&panel, "MOVE DIST [MPC]", &md_mpc, 0.0, 1.0);
             simulation_config.move_distance = measure_world_to_grid(md_mpc, WORLD_SIZE_X, float(GRID_RESOLUTION_X));
-            ui::add_slider(&panel, "AGENT DEPOSIT", &simulation_config.deposit_value, 0.0, 10.0);
-            ui::add_slider(&panel, "PERSISTENCE", &simulation_config.decay_factor, 0.8, 0.995);
-            // ui::add_slider(&panel, "CENTER ATTRACTION", &simulation_config.center_attraction, 0.0, 1.0);
-            ui::add_slider(&panel, "SAMPLING EXP", &simulation_config.move_sense_coef, 0.0001, 10.0);
+            reset_pt |= ui::add_slider(&panel, "AGENT DEPOSIT", &simulation_config.deposit_value, 0.0, 10.0);
+            reset_pt |= ui::add_slider(&panel, "PERSISTENCE", &simulation_config.decay_factor, 0.8, 0.995);
+            // reset_pt |= ui::add_slider(&panel, "CENTER ATTRACTION", &simulation_config.center_attraction, 0.0, 1.0);
+            reset_pt |= ui::add_slider(&panel, "SAMPLING EXP", &simulation_config.move_sense_coef, 0.0001, 10.0);
 
             float swgt = log(rendering_config.sample_weight) / log(10.0);
-            ui::add_slider(&panel, "FIT WEIGHT", &swgt, -5.0, 3.0);
+            reset_pt |= ui::add_slider(&panel, "TRACE WEIGHT", &swgt, -5.0, 3.0);
             rendering_config.sample_weight = math::pow(10.0, swgt);
-            ui::add_slider(&panel, "DATA WEIGHT", &rendering_config.galaxy_weight, 0.0, 1.0);
-            ui::add_slider(&panel, "OPTI THICKNESS", &rendering_config.optical_thickness, 0.0, 1.0);
-            float trd = log(rendering_config.trim_density) / log(HISTOGRAM_BASE);
-            ui::add_slider(&panel, "TRIM DENSITY", &trd, -5.0, 9.0);
-            rendering_config.trim_density = math::pow(HISTOGRAM_BASE, trd);
-            float hgd = log(rendering_config.highlight_density) / log(HISTOGRAM_BASE);
-            ui::add_slider(&panel, "HGLGHT DENSITY", &hgd, -5.0, 9.0);
-            rendering_config.highlight_density = math::pow(HISTOGRAM_BASE, hgd);
-            float odt_low = log(rendering_config.overdensity_threshold_low) / log(HISTOGRAM_BASE);
-            float odt_high = log(rendering_config.overdensity_threshold_high) / log(HISTOGRAM_BASE);
-            ui::add_slider(&panel, "OVERDENSITY LO", &odt_low, -5.0, odt_high);
-            ui::add_slider(&panel, "OVERDENSITY HI", &odt_high, odt_low, 9.0);
-            rendering_config.overdensity_threshold_low = math::pow(HISTOGRAM_BASE, odt_low);
-            rendering_config.overdensity_threshold_high = math::pow(HISTOGRAM_BASE, odt_high);
-            ui::add_slider(&panel, "BACKGROUND COL", &background_color, 0.0, 1.0);
+            reset_pt |= ui::add_slider(&panel, "DEPOSIT WEIGHT", &rendering_config.galaxy_weight, 0.0, 1.0);
 
             ui::add_toggle(&panel, "TRACE HISTOGRAM", &compute_histogram);
             static bool random_histogram_sampling = false;
@@ -1331,16 +1329,40 @@ int main(int argc, char **argv)
             is_toggled = vis_mode == VisualizationMode::VM_VOLUME_HIGHLIGHT;
             ui::add_toggle(&panel, "VIS: HIGHLIGHTS", &is_toggled);
             vis_mode = is_toggled? VisualizationMode::VM_VOLUME_HIGHLIGHT : vis_mode;
+            if (vis_mode == VisualizationMode::VM_VOLUME_HIGHLIGHT) {
+                float hgd = log(rendering_config.highlight_density) / log(HISTOGRAM_BASE);
+                ui::add_slider(&panel, "HGLGHT DENSITY", &hgd, -5.0, 9.0);
+                rendering_config.highlight_density = math::pow(HISTOGRAM_BASE, hgd);
+            }
 
             is_toggled = vis_mode == VisualizationMode::VM_VOLUME_OVERDENSITY;
             ui::add_toggle(&panel, "VIS: OVERDENSITY", &is_toggled);
             vis_mode = is_toggled? VisualizationMode::VM_VOLUME_OVERDENSITY : vis_mode;
+            if (vis_mode == VisualizationMode::VM_VOLUME_OVERDENSITY) {
+                float odt_low = log(rendering_config.overdensity_threshold_low) / log(HISTOGRAM_BASE);
+                float odt_high = log(rendering_config.overdensity_threshold_high) / log(HISTOGRAM_BASE);
+                ui::add_slider(&panel, "OVERDENSITY LO", &odt_low, -5.0, odt_high);
+                ui::add_slider(&panel, "OVERDENSITY HI", &odt_high, odt_low, 9.0);
+                rendering_config.overdensity_threshold_low = math::pow(HISTOGRAM_BASE, odt_low);
+                rendering_config.overdensity_threshold_high = math::pow(HISTOGRAM_BASE, odt_high);
+            }
 
             #ifdef VELOCITY_ANALYSIS
             is_toggled = vis_mode == VisualizationMode::VM_VOLUME_VELOCITY;
             ui::add_toggle(&panel, "VIS: VELOCITY", &is_toggled);
             vis_mode = is_toggled? VisualizationMode::VM_VOLUME_VELOCITY : vis_mode;
             #endif
+
+            if (vis_mode == VisualizationMode::VM_VOLUME
+              || vis_mode == VisualizationMode::VM_VOLUME_HIGHLIGHT
+              || vis_mode == VisualizationMode::VM_VOLUME_OVERDENSITY
+              || vis_mode == VisualizationMode::VM_VOLUME_VELOCITY) {
+                ui::add_slider(&panel, "OPTI THICKNESS", &rendering_config.optical_thickness, 0.0, 1.0);
+                float trd = log(rendering_config.trim_density) / log(HISTOGRAM_BASE);
+                reset_pt |= ui::add_slider(&panel, "TRIM DENSITY", &trd, -5.0, 9.0);
+                rendering_config.trim_density = math::pow(HISTOGRAM_BASE, trd);
+                ui::add_slider(&panel, "BACKGROUND COL", &background_color, 0.0, 1.0);
+            }
 
             is_toggled = vis_mode == VisualizationMode::VM_PARTICLES;
             ui::add_toggle(&panel, "VIS: PARTICLES", &is_toggled);
@@ -1353,21 +1375,29 @@ int main(int argc, char **argv)
             if (vis_mode == VisualizationMode::VM_PATH_TRACING) {
                 float sigma_t = rendering_config.sigma_a + rendering_config.sigma_s;
                 float albedo = sigma_t < 1.e-5 ? 0.0 : rendering_config.sigma_s / sigma_t;
-                reset_pt = ui::add_slider(&panel, "SIGMA_T", &sigma_t, 0.0, 1.0);
-                reset_pt = ui::add_slider(&panel, "ALBEDO", &albedo, 0.0, 0.99);
+                reset_pt |= ui::add_slider(&panel, "SIGMA_T", &sigma_t, 0.0, 1.0);
+                reset_pt |= ui::add_slider(&panel, "ALBEDO", &albedo, 0.0, 0.99);
                 rendering_config.sigma_a = (1.0 - albedo) * sigma_t;
                 rendering_config.sigma_s = albedo * sigma_t;
-                reset_pt = ui::add_slider(&panel, "SIGMA_E", &rendering_config.sigma_e, 0.0, 100.0);
+                reset_pt |= ui::add_slider(&panel, "SIGMA_E", &rendering_config.sigma_e, 0.0, 100.0);
+                reset_pt |= ui::add_slider(&panel, "AMBI TRCE", &rendering_config.ambient_trace, 0.0, 1.0);
+
+                float f_bounces = float(rendering_config.n_bounces);
+                reset_pt |= ui::add_slider(&panel, "N BOUNCES", &f_bounces, 0.0, 30.0);
+                rendering_config.n_bounces = int(f_bounces);
+                float expo = log(rendering_config.exposure) / log(10.0);
+                if (bool(rendering_config.compressive_accumulation))
+                    reset_pt |= ui::add_slider(&panel, "EXPOSURE", &expo, -5.0, 5.0);
+                else
+                    ui::add_slider(&panel, "EXPOSURE", &expo, -5.0, 5.0);
+                rendering_config.exposure = math::pow(10.0, expo);
                 float trmax = log(rendering_config.trace_max) / log(HISTOGRAM_BASE);
-                reset_pt = ui::add_slider(&panel, "TRACE_MAX", &trmax, -4.0, 4.0);
+                reset_pt |= ui::add_slider(&panel, "TRACE_MAX", &trmax, -4.0, 4.0);
                 rendering_config.trace_max = math::pow(HISTOGRAM_BASE, trmax);
 
-                float expo = log(rendering_config.exposure) / log(10.0);
-                reset_pt = ui::add_slider(&panel, "EXPOSURE", &expo, -5.0, 5.0);
-                rendering_config.exposure = math::pow(10.0, expo);
-                float f_bounces = float(rendering_config.n_bounces);
-                reset_pt = ui::add_slider(&panel, "N BOUNCES", &f_bounces, 0.0, 30.0);
-                rendering_config.n_bounces = int(f_bounces);
+                bool compress_L = bool(rendering_config.compressive_accumulation);
+                reset_pt |= ui::add_toggle(&panel, "COMPRESSIVE EXPOSURE", &compress_L);
+                rendering_config.compressive_accumulation = int(compress_L);
             }
 
             ui::end_panel(&panel);
