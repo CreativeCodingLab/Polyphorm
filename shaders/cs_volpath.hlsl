@@ -246,7 +246,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     RNG rng;
     rng.set_seed(
         rng.wang_hash(1 + 73 * idx),
-        rng.wang_hash(1 + pixel_xy.x * pixel_xy.y * (pt_iteration + 1))
+        rng.wang_hash(1 + (pixel_xy.x + pixel_xy.y + pixel_xy.x * pixel_xy.y) * (pt_iteration + 1))
     );
 
     // Compute x and y ray directions in "neutral" camera position.

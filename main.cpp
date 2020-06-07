@@ -32,7 +32,7 @@
 #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
 //#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_huge_t=10.3"
 // #define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
-#define FALSE_COLOR_PALETTE "data/palette_hot.tga"
+#define FALSE_COLOR_PALETTE "data/palette_magma.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 2.55;
 const float MOVE_ANGLE = 10.0;
@@ -717,11 +717,9 @@ int main(int argc, char **argv)
         // Event loop
         input::reset();
         Event event;
-        while(platform::get_event(&event))
-        {
+        while(platform::get_event(&event)) {
             input::register_event(&event);
-            switch(event.type)
-            {
+            switch(event.type) {
                 case EventType::EXIT:
                     is_running = false;
                 break;
@@ -739,13 +737,13 @@ int main(int argc, char **argv)
                     azimuth -= dm.x * 0.003;
                     polar -= dm.y * 0.003;
                     polar = math::clamp(polar, 0.01f, math::PI-0.01f);
-                    reset_pt = (dm.x > 0 || dm.y > 0);
+                    reset_pt |= (math::abs(dm.x) > 0 || math::abs(dm.y) > 0);
                 }
                 if (input::mouse_right_button_down()) {
                     Vector2 dm = input::mouse_delta_position();
                     camera_offset.x += radius * 0.03 * CAM_OFFSET * dm.x;
                     camera_offset.y -= radius * 0.03 * CAM_OFFSET * dm.y;
-                    reset_pt = (dm.x > 0 || dm.y > 0);
+                    reset_pt |= (math::abs(dm.x) > 0 || math::abs(dm.y) > 0);
                 }
             }
             if (turning_camera) {
@@ -1325,11 +1323,23 @@ int main(int argc, char **argv)
             is_toggled = vis_mode == VisualizationMode::VM_VOLUME;
             ui::add_toggle(&panel, "VIS: TRACE", &is_toggled);
             vis_mode = is_toggled? VisualizationMode::VM_VOLUME : vis_mode;
+            if (vis_mode == VisualizationMode::VM_VOLUME) {
+                ui::add_slider(&panel, "OPTI THICKNESS", &rendering_config.optical_thickness, 0.0, 1.0);
+                float trd = log(rendering_config.trim_density) / log(HISTOGRAM_BASE);
+                reset_pt |= ui::add_slider(&panel, "TRIM DENSITY", &trd, -5.0, 9.0);
+                rendering_config.trim_density = math::pow(HISTOGRAM_BASE, trd);
+                ui::add_slider(&panel, "BACKGROUND COL", &background_color, 0.0, 1.0);
+            }
 
             is_toggled = vis_mode == VisualizationMode::VM_VOLUME_HIGHLIGHT;
             ui::add_toggle(&panel, "VIS: HIGHLIGHTS", &is_toggled);
             vis_mode = is_toggled? VisualizationMode::VM_VOLUME_HIGHLIGHT : vis_mode;
             if (vis_mode == VisualizationMode::VM_VOLUME_HIGHLIGHT) {
+                ui::add_slider(&panel, "OPTI THICKNESS", &rendering_config.optical_thickness, 0.0, 1.0);
+                float trd = log(rendering_config.trim_density) / log(HISTOGRAM_BASE);
+                reset_pt |= ui::add_slider(&panel, "TRIM DENSITY", &trd, -5.0, 9.0);
+                rendering_config.trim_density = math::pow(HISTOGRAM_BASE, trd);
+                ui::add_slider(&panel, "BACKGROUND COL", &background_color, 0.0, 1.0);
                 float hgd = log(rendering_config.highlight_density) / log(HISTOGRAM_BASE);
                 ui::add_slider(&panel, "HGLGHT DENSITY", &hgd, -5.0, 9.0);
                 rendering_config.highlight_density = math::pow(HISTOGRAM_BASE, hgd);
@@ -1339,6 +1349,10 @@ int main(int argc, char **argv)
             ui::add_toggle(&panel, "VIS: OVERDENSITY", &is_toggled);
             vis_mode = is_toggled? VisualizationMode::VM_VOLUME_OVERDENSITY : vis_mode;
             if (vis_mode == VisualizationMode::VM_VOLUME_OVERDENSITY) {
+                ui::add_slider(&panel, "OPTI THICKNESS", &rendering_config.optical_thickness, 0.0, 1.0);
+                float trd = log(rendering_config.trim_density) / log(HISTOGRAM_BASE);
+                reset_pt |= ui::add_slider(&panel, "TRIM DENSITY", &trd, -5.0, 9.0);
+                rendering_config.trim_density = math::pow(HISTOGRAM_BASE, trd);
                 float odt_low = log(rendering_config.overdensity_threshold_low) / log(HISTOGRAM_BASE);
                 float odt_high = log(rendering_config.overdensity_threshold_high) / log(HISTOGRAM_BASE);
                 ui::add_slider(&panel, "OVERDENSITY LO", &odt_low, -5.0, odt_high);
@@ -1351,18 +1365,14 @@ int main(int argc, char **argv)
             is_toggled = vis_mode == VisualizationMode::VM_VOLUME_VELOCITY;
             ui::add_toggle(&panel, "VIS: VELOCITY", &is_toggled);
             vis_mode = is_toggled? VisualizationMode::VM_VOLUME_VELOCITY : vis_mode;
-            #endif
-
-            if (vis_mode == VisualizationMode::VM_VOLUME
-              || vis_mode == VisualizationMode::VM_VOLUME_HIGHLIGHT
-              || vis_mode == VisualizationMode::VM_VOLUME_OVERDENSITY
-              || vis_mode == VisualizationMode::VM_VOLUME_VELOCITY) {
+            if (vis_mode == VisualizationMode::VM_VOLUME_VELOCITY) {
                 ui::add_slider(&panel, "OPTI THICKNESS", &rendering_config.optical_thickness, 0.0, 1.0);
                 float trd = log(rendering_config.trim_density) / log(HISTOGRAM_BASE);
                 reset_pt |= ui::add_slider(&panel, "TRIM DENSITY", &trd, -5.0, 9.0);
                 rendering_config.trim_density = math::pow(HISTOGRAM_BASE, trd);
                 ui::add_slider(&panel, "BACKGROUND COL", &background_color, 0.0, 1.0);
             }
+            #endif
 
             is_toggled = vis_mode == VisualizationMode::VM_PARTICLES;
             ui::add_toggle(&panel, "VIS: PARTICLES", &is_toggled);
@@ -1371,7 +1381,6 @@ int main(int argc, char **argv)
             is_toggled = vis_mode == VisualizationMode::VM_PATH_TRACING;
             ui::add_toggle(&panel, "VIS: PATH TRACING", &is_toggled);
             vis_mode = is_toggled? VisualizationMode::VM_PATH_TRACING : vis_mode;
-
             if (vis_mode == VisualizationMode::VM_PATH_TRACING) {
                 float sigma_t = rendering_config.sigma_a + rendering_config.sigma_s;
                 float albedo = sigma_t < 1.e-5 ? 0.0 : rendering_config.sigma_s / sigma_t;
