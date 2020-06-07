@@ -13,3 +13,4 @@
 /vs_3d.hlsl
 /cs_volpath.hlsl
 /ps_volpath.hlsl
+*.tmp
