@@ -9,12 +9,15 @@
 #define TEMPORAL_ACCUMULATION
 #define RUSSIAN_ROULETTE
 // #define RAYMARCH_ORDER1
+#define HALO_ILLUMINATION
 
 RWTexture2D<float4> tex_accumulator: register(u0);
 Texture3D tex_trace : register(t1);
 SamplerState tex_trace_sampler : register(s1);
-Texture2D tex_false_color : register(t2);
-SamplerState tex_false_color_sampler : register(s2);
+Texture3D tex_deposit : register(t2);
+SamplerState tex_deposit_sampler : register(s2);
+Texture2D tex_false_color : register(t3);
+SamplerState tex_false_color_sampler : register(s3);
 
 cbuffer ConfigBuffer : register(b4)
 {
@@ -151,8 +154,6 @@ float remap(float val, float slope) {
 }
 float3 tonemap(float3 L, float exposure) {
 	return float3(1.0, 1.0, 1.0) - exp(-exposure * L);
-    // return (1.0 - exp(-exposure*l)) * L;
-    // return L / float(l + 1.0);
 }
 
 float trace_to_rho(float trace) {
@@ -162,6 +163,11 @@ float trace_to_rho(float trace) {
 float get_rho(float3 rp) {
     float trace = tex_trace.SampleLevel(tex_trace_sampler, rp / float3(grid_x, grid_y, grid_z), 0).r;
     return trace_to_rho(trace);
+}
+
+float get_halo(float3 rp) {
+    float deposit = tex_deposit.SampleLevel(tex_deposit_sampler, rp / float3(grid_x, grid_y, grid_z), 0).r;
+    return 0.01 * galaxy_weight * deposit;
 }
 
 float3 get_emitted_L(float rho) {
@@ -188,8 +194,9 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     float3 L = float3(0.0, 0.0, 0.0);
     float throughput = 1.0;
     float albedo = sigma_s / (sigma_a + sigma_s);
-    float rho_max_inv = 1.0 / trace_to_rho(trace_max);
+    float rho_max_inv = 1.0 / trace_to_rho(trace_max);    
     for (int n = 0; n < nBounces; ++n) {
+
         // Sample collision distance
         float2 t = ray_AABB_intersection(rp, rd, c_low, c_high);
         float t_event = delta_tracking(rp, rd, 0.0, t.y, rho_max_inv, rng);
@@ -199,7 +206,12 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         float rho_event = get_rho(rp);
 
         // Get locally emitted light
+        #ifdef HALO_ILLUMINATION
+        float halo_event = get_halo(rp);
+        float3 emission = get_emitted_L(halo_event);
+        #else
         float3 emission = get_emitted_L(rho_event);
+        #endif
         L += throughput * rho_event * sigma_e * emission;
 
         // Adjust the path throughput (RR or modulate)
@@ -218,7 +230,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
 [numthreads(PT_GROUP_SIZE_X, PT_GROUP_SIZE_Y, 1)]
 void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
-          uint3 dispatchThreadId : SV_DispatchThreadID){
+          uint3 dispatchThreadId : SV_DispatchThreadID) {
     uint2 pixel_xy = dispatchThreadId.xy;
     uint idx = threadIDInGroup + PT_GROUP_SIZE_X * PT_GROUP_SIZE_Y * groupID;
 

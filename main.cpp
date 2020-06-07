@@ -31,8 +31,8 @@
 #ifdef REGIME_SDSS
 #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
 //#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_huge_t=10.3"
-//#define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
-#define FALSE_COLOR_PALETTE "data/palette_magneto2.tga"
+// #define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
+#define FALSE_COLOR_PALETTE "data/palette_hot.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 2.55;
 const float MOVE_ANGLE = 10.0;
@@ -1070,8 +1070,14 @@ int main(int argc, char **argv)
                 graphics::set_texture_compute(&display_tex, 0);
                 graphics::set_texture_sampled_compute(&trace_tex, 1);
                 graphics::set_texture_sampler_compute(&tex_sampler_trace, 1);
-                graphics::set_texture_sampled_compute(&false_color_tex, 2);
-                graphics::set_texture_sampler_compute(&tex_sampler_false_color, 2);
+                if (is_a) {
+                    graphics::set_texture_sampled_compute(&trail_tex_A, 2);
+                } else {
+                    graphics::set_texture_sampled_compute(&trail_tex_B, 2);
+                }
+                graphics::set_texture_sampler(&tex_sampler_deposit, 2);
+                graphics::set_texture_sampled_compute(&false_color_tex, 3);
+                graphics::set_texture_sampler_compute(&tex_sampler_false_color, 3);
                 graphics::run_compute(
                     rendering_config.screen_width / int(PT_GROUP_SIZE_X),
                     rendering_config.screen_height / int(PT_GROUP_SIZE_Y),
@@ -1079,6 +1085,7 @@ int main(int argc, char **argv)
                 graphics::unset_texture_compute(0);
                 graphics::unset_texture_sampled_compute(1);
                 graphics::unset_texture_sampled_compute(2);
+                graphics::unset_texture_sampled_compute(3);
 
                 graphics::set_vertex_shader(&vertex_shader_2d);
                 graphics::set_pixel_shader(&ps_volpath);
@@ -1359,7 +1366,7 @@ int main(int argc, char **argv)
                 reset_pt = ui::add_slider(&panel, "EXPOSURE", &expo, -5.0, 5.0);
                 rendering_config.exposure = math::pow(10.0, expo);
                 float f_bounces = float(rendering_config.n_bounces);
-                reset_pt = ui::add_slider(&panel, "N BOUNCES", &f_bounces, 0.0, 10.0);
+                reset_pt = ui::add_slider(&panel, "N BOUNCES", &f_bounces, 0.0, 30.0);
                 rendering_config.n_bounces = int(f_bounces);
             }
 
