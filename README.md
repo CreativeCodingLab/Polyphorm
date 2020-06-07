@@ -69,8 +69,8 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
   <img src="docs/trim_combined.png" width="22%" height="22%">
 </p>
 
-## Team
-*Polyphorm* would not happen without the following humans:
+## People
+*Polyphorm* would not happen without the following humans on the team:
 - [Oskar Elek](https://cgg.mff.cuni.cz/~oskar) - corresponding author, simulation and visualization
 - [Joe Burchett](http://www.joeburchett.com/) - astronomical expertise and data
 - [Angus Forbes](https://creativecoding.soe.ucsc.edu/angus/) - funding and guidance
@@ -79,7 +79,7 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
 As well as one protista:
 - [Physarum polycephalum](https://en.wikipedia.org/wiki/Physarum_polycephalum) - spatial navigation and foraging
 
-Additional thanks belong to Sage Jenson, Jeff Jones, J. Xavier Prochaska, Daisuke Nagai (all humans).
+Many thanks also belong to other humans: Sage Jenson (for a major inception), Jeff Jones (for writing that great paper), J. Xavier Prochaska (for trust and support), Daisuke Nagai (for ideas and insights), Sebastian Herholz (for all the Monte Carlo lore), Jaroslav Křivánek (for an awesome ride).
 
 ## Publications
 *Polyphorm* has been instrumental in the following scientific results.
