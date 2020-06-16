@@ -9,7 +9,7 @@ Histogram base = 10.0
 # Anything below this line is ingored
 
 Screen X = 1800
-Screen Y = 1050
+Screen Y = 1000
 
 Screen X = 1400
 Screen Y = 850

@@ -9,7 +9,11 @@
 #define TEMPORAL_ACCUMULATION
 #define RUSSIAN_ROULETTE
 // #define RAYMARCH_ORDER1
+
+// Illumination types
+// #define POINT_ILLUMINATION
 #define HALO_ILLUMINATION
+// #define TRACE_ILLUMINATION
 
 RWTexture2D<float4> tex_accumulator: register(u0);
 Texture3D tex_trace : register(t1);
@@ -161,7 +165,7 @@ float3 tonemap(float3 L, float exposure) {
 }
 
 float trace_to_rho(float trace) {
-    return max(trace + ambient_trace - trim_density, 0.0) * sample_weight;
+    return max(trace - trim_density, 0.0) * sample_weight + ambient_trace;
 }
 
 float get_rho(float3 rp) {
@@ -175,7 +179,7 @@ float get_halo(float3 rp) {
 }
 
 float3 get_emitted_L(float rho) {
-    return rho * tex_false_color.SampleLevel(tex_false_color_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
+    return tex_false_color.SampleLevel(tex_false_color_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
 }
 
 float delta_step(float sigma_max_inv, float xi) {
@@ -194,11 +198,35 @@ float delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_m
 	return t;
 }
 
+float occlusion_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
+	float sigma_max_inv = rho_max_inv / (sigma_a + sigma_s);
+    float t = t_min;
+    float rho_sum = 0.0;
+    int iSteps = 0;
+	do {
+		t += 10.0 * delta_step(sigma_max_inv, rng.random_float());
+		rho_sum += get_rho(rp + t * rd);
+        ++iSteps;
+	} while (t <= t_max);
+    rho_sum /= float(iSteps);
+    float transmittance = exp(-(sigma_s + sigma_a) * rho_sum * (t_max - t_min));
+
+	return transmittance;
+}
+
 float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBounces, inout RNG rng) {
     float3 L = float3(0.0, 0.0, 0.0);
     float throughput = 1.0;
     float albedo = sigma_s / (sigma_a + sigma_s);
-    float rho_max_inv = 1.0 / trace_to_rho(trace_max);    
+    float rho_max_inv = 1.0 / trace_to_rho(trace_max);
+
+    #ifdef POINT_ILLUMINATION
+    float3 trim_min = float3(trim_x_min, trim_y_min, trim_z_min);
+    float3 trim_max = float3(trim_x_max, trim_y_max, trim_z_max);
+    float3 l_rel_pos = 0.5 * (trim_min + trim_max);
+    float3 lp = c_low + l_rel_pos * c_high;
+    #endif
+
     for (int n = 0; n < nBounces; ++n) {
 
         // Sample collision distance
@@ -209,12 +237,25 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         rp += t_event * rd;
         float rho_event = get_rho(rp);
 
-        // Get locally emitted light
+        // Get emitted light
+        float3 emission = float3(0.0, 0.0, 0.0);
         #ifdef HALO_ILLUMINATION
         float halo_event = get_halo(rp);
-        float3 emission = get_emitted_L(halo_event);
-        #else
-        float3 emission = get_emitted_L(rho_event);
+        emission += get_emitted_L(halo_event);
+        #endif
+        #ifdef POINT_ILLUMINATION
+        float3 ld = lp - rp;
+        float l_distance = length(ld);
+        ld = normalize(ld);
+        float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, rng);
+        emission += 100.0 * galaxy_weight * transmittance / max(l_distance * l_distance, 1.0);
+        // float t_occlusion = delta_tracking(rp, ld, 0.0, l_distance, rho_max_inv, rng);
+        // if (t_occlusion > l_distance) {
+        //     emission += 100.0 * galaxy_weight /  max(l_distance * l_distance, 1.0);
+        // }
+        #endif
+        #ifdef TRACE_ILLUMINATION
+        emission += get_emitted_L(rho_event);
         #endif
         L += throughput * rho_event * sigma_e * emission;
 

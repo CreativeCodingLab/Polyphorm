@@ -55,5 +55,5 @@ float3 tonemap(float3 L, float exposure) {
 
 float4 main(PixelInput input) : SV_TARGET {
   float3 L = tex.Sample(tex_sampler, input.texcoord_out).rgb;
-  return float4(compressive_accumulation == 1? L : tonemap(L, exposure), 1.0);
+  return float4(compressive_accumulation == 1 ? L : tonemap(L, exposure), 1.0);
 }

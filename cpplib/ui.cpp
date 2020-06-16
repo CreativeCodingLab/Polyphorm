@@ -374,10 +374,10 @@ static int32_t hot_id = -1;
 #define COLOR(r,g,b,a) Vector4((r) / 255.0f, (g) / 255.0f, (b) / 255.0f, (a) / 255.0f)
 // This means that the color has been NOT gamma corrected - it was seen displayed incorrectly.
 #define COLOR_LINEAR(r,g,b,a) Vector4(math::pow((r) / 255.0f, 2.2f), math::pow((g) / 255.0f, 2.2f), math::pow((b) / 255.0f, 2.2f), math::pow((a) / 255.0f, 2.2f))
-static Vector4 color_background = Vector4(0.1f, 0.1f, 0.1f, .8f);
+static Vector4 color_background = Vector4(0.03f, 0.03f, 0.03f, 0.8f);
 static Vector4 color_foreground = Vector4(0.8f, 0.8f, 0.8f, 0.6f);
 static Vector4 color_title = COLOR_LINEAR(28, 224, 180, 255);
-static Vector4 color_label = Vector4(1.0f, 1.0f, 1.0f, 0.6f);
+static Vector4 color_label = Vector4(0.5f, 0.5f, 0.5f, 0.9f);
 
 Panel ui::start_panel(char *name, Vector2 pos, float width)
 {

@@ -86,10 +86,13 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
     
     uint histo_index = 0;
     if (density > 1.0e-5) {
-        density = log(density) / log(histogram_base) + 5.0;
-        histo_index = 1 + min(uint(density), n_histo_bins-2);
+        float log_density = log(density) / log(histogram_base);
+        histo_index = 1 + min(uint(log_density + 5.0), n_histo_bins - 3);
     }
 
     InterlockedAdd(histogram[histo_index], 1);
+    InterlockedMax(histogram[n_histo_bins-1], uint(1.e5 * density));
+    // uint mx = max(histogram[n_histo_bins-1], uint(1.e5 * density));
+    // histogram[n_histo_bins-1] = mx;
 }
 

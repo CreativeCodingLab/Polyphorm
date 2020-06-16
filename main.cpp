@@ -17,6 +17,8 @@
 #pragma warning(disable:4305)
 #pragma warning(disable:4244)
 
+//====================================================================
+
 // Work regimes: Uncomment one and only one of these...
 #define REGIME_SDSS
 // #define REGIME_FRB
@@ -80,8 +82,8 @@ const float SAMPLING_EXPONENT = 3.0;
 #endif
 
 #ifdef REGIME_EMBEDDING
-#define DATASET_NAME "data/Embeddings/Wiki_Contextualized_n=20151"
-#define FALSE_COLOR_PALETTE "data/palette_hot.tga"
+#define DATASET_NAME "data/Embeddings/W2V_UMAP_params_15_n=296630"
+#define FALSE_COLOR_PALETTE "data/palette_magma.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 3.0;
 const float MOVE_ANGLE = 10.0;
@@ -91,9 +93,9 @@ const float PERSISTENCE = 0.93;
 const float SAMPLING_EXPONENT = 3.5;
 #endif
 
-// Other hardwired settings
+// Other hardwired settings ==========================================
 const int32_t THREAD_GROUP_SIZE = 1000; // Divisible by 10! Must align with settings inside the agent shader!
-const uint32_t N_HISTOGRAM_BINS = 16; // Must align with settings inside the histo shader!
+const uint32_t N_HISTOGRAM_BINS = 17; // Must align with settings inside the histo shader!
 const int32_t PT_GROUP_SIZE_X = 10; // Must align with settings inside the PT shader!
 const int32_t PT_GROUP_SIZE_Y = 10; // Must align with settings inside the PT shader!
 const int32_t N_AGENTS_TO_CAPTURE = 1e3;
@@ -634,12 +636,12 @@ int main(int argc, char **argv)
     rendering_config.pt_iteration = 0;
     rendering_config.sigma_s = 0.0;
     rendering_config.sigma_a = 0.5;
-    rendering_config.sigma_e = 1.0;
+    rendering_config.sigma_e = 10.0;
     rendering_config.trace_max = 100.0;
     rendering_config.camera_offset_x = 0.0;
     rendering_config.camera_offset_y = 0.0;
     rendering_config.exposure = 1.0;
-    rendering_config.n_bounces = 3;
+    rendering_config.n_bounces = 5;
     rendering_config.ambient_trace = 0.0;
     rendering_config.compressive_accumulation = 1;
     ConstantBuffer rendering_settings_buffer = graphics::get_constant_buffer(sizeof(RenderingConfig));
@@ -698,6 +700,7 @@ int main(int argc, char **argv)
     bool make_screenshot = false;
     bool capture_agents = false;
     bool compute_histogram = true;
+    bool run_pt = true;
     bool reset_pt = false;
     float background_color = 0.0;
     VisualizationMode vis_mode = VisualizationMode::VM_PARTICLES;
@@ -802,6 +805,9 @@ int main(int argc, char **argv)
                     << rendering_config.optical_thickness << " " << rendering_config.optical_thickness << " "
                     << rendering_config.trim_density << " " << rendering_config.highlight_density << " "
                     << rendering_config.overdensity_threshold_low << " " << rendering_config.overdensity_threshold_high << std::endl;
+                visu_state << rendering_config.sigma_s << " " << rendering_config.sigma_a << " " << rendering_config.sigma_e << " "
+                    << rendering_config.exposure << " " << rendering_config.trace_max << " " << rendering_config.n_bounces << " "
+                    << rendering_config.ambient_trace << " " << rendering_config.compressive_accumulation << std::endl;
                 visu_state.close();
             }
             if (input::key_pressed(KeyCode::F10)) {
@@ -816,7 +822,11 @@ int main(int argc, char **argv)
                     >> rendering_config.optical_thickness >> rendering_config.optical_thickness
                     >> rendering_config.trim_density >> rendering_config.highlight_density
                     >> rendering_config.overdensity_threshold_low >> rendering_config.overdensity_threshold_high;
+                visu_state >> rendering_config.sigma_s >> rendering_config.sigma_a >> rendering_config.sigma_e
+                    >> rendering_config.exposure >> rendering_config.trace_max >> rendering_config.n_bounces
+                    >> rendering_config.ambient_trace >> rendering_config.compressive_accumulation;
                 visu_state.close();
+                reset_pt = true;
             }
             if (input::key_pressed(KeyCode::NUM1)) {
                 make_screenshot = true;
@@ -1076,26 +1086,29 @@ int main(int argc, char **argv)
                     rendering_config.pt_iteration = 0;
                 }
                 graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
-                graphics::set_compute_shader(&cs_volpath);
-                graphics::set_texture_compute(&display_tex, 0);
-                graphics::set_texture_sampled_compute(&trace_tex, 1);
-                graphics::set_texture_sampler_compute(&tex_sampler_trace, 1);
-                if (is_a) {
-                    graphics::set_texture_sampled_compute(&trail_tex_A, 2);
-                } else {
-                    graphics::set_texture_sampled_compute(&trail_tex_B, 2);
+                if (run_pt && rendering_config.pt_iteration < 1e5) {
+                    graphics::set_compute_shader(&cs_volpath);
+                    graphics::set_texture_compute(&display_tex, 0);
+                    graphics::set_texture_sampled_compute(&trace_tex, 1);
+                    graphics::set_texture_sampler_compute(&tex_sampler_trace, 1);
+                    if (is_a) {
+                        graphics::set_texture_sampled_compute(&trail_tex_A, 2);
+                    } else {
+                        graphics::set_texture_sampled_compute(&trail_tex_B, 2);
+                    }
+                    graphics::set_texture_sampler(&tex_sampler_deposit, 2);
+                    graphics::set_texture_sampled_compute(&false_color_tex, 3);
+                    graphics::set_texture_sampler_compute(&tex_sampler_false_color, 3);
+                    graphics::run_compute(
+                        rendering_config.screen_width / int(PT_GROUP_SIZE_X),
+                        rendering_config.screen_height / int(PT_GROUP_SIZE_Y),
+                        1);
+                    graphics::unset_texture_compute(0);
+                    graphics::unset_texture_sampled_compute(1);
+                    graphics::unset_texture_sampled_compute(2);
+                    graphics::unset_texture_sampled_compute(3);
+                    rendering_config.pt_iteration++;
                 }
-                graphics::set_texture_sampler(&tex_sampler_deposit, 2);
-                graphics::set_texture_sampled_compute(&false_color_tex, 3);
-                graphics::set_texture_sampler_compute(&tex_sampler_false_color, 3);
-                graphics::run_compute(
-                    rendering_config.screen_width / int(PT_GROUP_SIZE_X),
-                    rendering_config.screen_height / int(PT_GROUP_SIZE_Y),
-                    1);
-                graphics::unset_texture_compute(0);
-                graphics::unset_texture_sampled_compute(1);
-                graphics::unset_texture_sampled_compute(2);
-                graphics::unset_texture_sampled_compute(3);
 
                 graphics::set_vertex_shader(&vertex_shader_2d);
                 graphics::set_pixel_shader(&ps_volpath);
@@ -1103,8 +1116,6 @@ int main(int argc, char **argv)
                 graphics::set_texture_sampler(&tex_sampler_display, 0);
                 graphics::draw_mesh(&quad_mesh);
                 graphics::unset_texture(0);
-
-                rendering_config.pt_iteration++;
             }
         }
 
@@ -1115,13 +1126,13 @@ int main(int argc, char **argv)
             graphics::capture_structured_buffer(&density_histogram_buffer, density_histogram, N_HISTOGRAM_BINS, sizeof(unsigned int));
             float norm_coef = float(density_histogram[0]);
             float energy = 0.0;
-            for (int b = 1; b < N_HISTOGRAM_BINS; b++) {
+            for (int b = 1; b < N_HISTOGRAM_BINS-1; b++) {
                 norm_coef += float(density_histogram[b]);
                 energy += float(density_histogram[b]) * math::pow(HISTOGRAM_BASE, b-6);
             }
             float mean = energy / norm_coef;
             float variance = float(density_histogram[0]) * math::square(-mean);
-            for (int b = 1; b < N_HISTOGRAM_BINS; b++) {
+            for (int b = 1; b < N_HISTOGRAM_BINS-1; b++) {
                 variance += float(density_histogram[b]) * math::square(math::pow(HISTOGRAM_BASE, b-6) - mean);
             }
             variance /= norm_coef;
@@ -1135,11 +1146,11 @@ int main(int argc, char **argv)
                 // X start | Y start | bar width | bar gap
             const Vector4 histo_params = Vector4(5.0, float(SCREEN_Y)-20.0, 10.0, 4.0);
                 // relative height | total width | void | void
-            const Vector4 histo_params2 = Vector4(0.15*float(SCREEN_Y), N_HISTOGRAM_BINS*(histo_params.z+histo_params.w), 0.0, 0.0);
+            const Vector4 histo_params2 = Vector4(0.15*float(SCREEN_Y), (N_HISTOGRAM_BINS-1)*(histo_params.z+histo_params.w), 0.0, 0.0);
             const Vector4 label_params = Vector4(8.6, 3.0, 0.0, 0.0);
             const Vector4 label_color = Vector4(0.5, 0.95, 0.55, 0.55);
             std::stringstream histo_label;
-            for (int b = 0; b < N_HISTOGRAM_BINS; ++b) {
+            for (int b = 0; b < N_HISTOGRAM_BINS-1; ++b) {
                 float current_bar = 0.5 + histo_params2.x * float(density_histogram[b]) / norm_coef;
                 Vector4 bar_color = Vector4(0.4, 0.9, 0.5, 0.5);
                 if (b == 0)
@@ -1188,7 +1199,7 @@ int main(int argc, char **argv)
                     eplot_color);
             }
             ui::draw_text("E",
-                Vector2(histo_params.x + N_HISTOGRAM_BINS*(histo_params.z+histo_params.w) + histo_params.w,
+                Vector2(histo_params.x + (N_HISTOGRAM_BINS-1)*(histo_params.z+histo_params.w) + histo_params.w,
                 histo_params.y - label_params.x - eplot_params.y * eplot_vals[(eplot_ptr-1) % eplot_res] / max_objective),
                 eplot_color);
 
@@ -1198,14 +1209,15 @@ int main(int argc, char **argv)
             histo_label.str("");
             histo_label << "E: " << mean;
             ui::draw_text(histo_label.str().c_str(),
-                Vector2(histo_params.x + N_HISTOGRAM_BINS*(histo_params.z+histo_params.w) + histo_params.w,
+                Vector2(histo_params.x + (N_HISTOGRAM_BINS-1)*(histo_params.z+histo_params.w) + histo_params.w,
                 histo_params.y - (label_params.x-label_counter*label_params.y) * histo_params.w),
                 label_color);
             ++label_counter;
             histo_label.str("");
-            histo_label << "V: " << variance;
+            // histo_label << "V: " << variance;
+            histo_label << "M: " << float(density_histogram[N_HISTOGRAM_BINS-1]) / 1.e5;
             ui::draw_text(histo_label.str().c_str(),
-                Vector2(histo_params.x + N_HISTOGRAM_BINS*(histo_params.z+histo_params.w) + histo_params.w,
+                Vector2(histo_params.x + (N_HISTOGRAM_BINS-1)*(histo_params.z+histo_params.w) + histo_params.w,
                 histo_params.y - (label_params.x-label_counter*label_params.y) * histo_params.w),
                 label_color);
             ++label_counter;
@@ -1213,14 +1225,14 @@ int main(int argc, char **argv)
             histo_label.str("");
             histo_label << "null: " << 100.0 * float(density_histogram[0]) / norm_coef << "%";
             ui::draw_text(histo_label.str().c_str(),
-                Vector2(histo_params.x + N_HISTOGRAM_BINS*(histo_params.z+histo_params.w) + histo_params.w,
+                Vector2(histo_params.x + (N_HISTOGRAM_BINS-1)*(histo_params.z+histo_params.w) + histo_params.w,
                 histo_params.y - (label_params.x-label_counter*label_params.y) * histo_params.w),
                 label_color);
             ++label_counter;
             histo_label.str("");
             histo_label << "(log " << HISTOGRAM_BASE << ")";
             ui::draw_text(histo_label.str().c_str(),
-                Vector2(histo_params.x + N_HISTOGRAM_BINS*(histo_params.z+histo_params.w) + histo_params.w,
+                Vector2(histo_params.x + (N_HISTOGRAM_BINS-1)*(histo_params.z+histo_params.w) + histo_params.w,
                 histo_params.y - (label_params.x-label_counter*label_params.y) * histo_params.w),
                 label_color);
             ++label_counter;
@@ -1301,19 +1313,19 @@ int main(int argc, char **argv)
             if (do_trimming) {
                 float trim_pos = (rendering_config.trim_x_max + rendering_config.trim_x_min) / 2.0;
                 float trim_width = rendering_config.trim_x_max - rendering_config.trim_x_min;
-                ui::add_slider(&panel, "X POS", &trim_pos, 0.0, 1.0);
+                reset_pt |= ui::add_slider(&panel, "X POS", &trim_pos, 0.0, 1.0);
                 ui::add_slider(&panel, "X WIDTH", &trim_width, 0.0, 1.0);
                 rendering_config.trim_x_min = smoothing_coef * rendering_config.trim_x_min + (1.0-smoothing_coef) * (trim_pos - 0.5 * trim_width);
                 rendering_config.trim_x_max = smoothing_coef * rendering_config.trim_x_max + (1.0-smoothing_coef) * (trim_pos + 0.5 * trim_width);
                 trim_pos = (rendering_config.trim_y_max + rendering_config.trim_y_min) / 2.0;
                 trim_width = rendering_config.trim_y_max - rendering_config.trim_y_min;
-                ui::add_slider(&panel, "Y POS", &trim_pos, 0.0, 1.0);
+                reset_pt |= ui::add_slider(&panel, "Y POS", &trim_pos, 0.0, 1.0);
                 ui::add_slider(&panel, "Y WIDTH", &trim_width, 0.0, 1.0);
                 rendering_config.trim_y_min = smoothing_coef * rendering_config.trim_y_min + (1.0-smoothing_coef) * (trim_pos - 0.5 * trim_width);
                 rendering_config.trim_y_max = smoothing_coef * rendering_config.trim_y_max + (1.0-smoothing_coef) * (trim_pos + 0.5 * trim_width);
                 trim_pos = (rendering_config.trim_z_max + rendering_config.trim_z_min) / 2.0;
                 trim_width = rendering_config.trim_z_max - rendering_config.trim_z_min;
-                ui::add_slider(&panel, "Z POS", &trim_pos, 0.0, 1.0);
+                reset_pt |= ui::add_slider(&panel, "Z POS", &trim_pos, 0.0, 1.0);
                 ui::add_slider(&panel, "Z WIDTH", &trim_width, 0.0, 1.0);
                 rendering_config.trim_z_min = smoothing_coef * rendering_config.trim_z_min + (1.0-smoothing_coef) * (trim_pos - 0.5 * trim_width);
                 rendering_config.trim_z_max = smoothing_coef * rendering_config.trim_z_max + (1.0-smoothing_coef) * (trim_pos + 0.5 * trim_width);
@@ -1407,6 +1419,7 @@ int main(int argc, char **argv)
                 bool compress_L = bool(rendering_config.compressive_accumulation);
                 reset_pt |= ui::add_toggle(&panel, "COMPRESSIVE EXPOSURE", &compress_L);
                 rendering_config.compressive_accumulation = int(compress_L);
+                ui::add_toggle(&panel, "RENDER!", &run_pt);
             }
 
             ui::end_panel(&panel);
