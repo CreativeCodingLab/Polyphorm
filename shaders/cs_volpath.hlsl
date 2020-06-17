@@ -1,14 +1,17 @@
 #define PT_GROUP_SIZE_X 10
 #define PT_GROUP_SIZE_Y 10
 #define PI 3.141592
-#define PI2 (2.0*PI)
+#define PI2 6.283184
+#define INV_PI4 0.079577
 #define RAY_EPSILON 1.e-4
 #define INTENSITY_EPSILON 1.e-4
+#define NUMERICAL_EPSILON 1.e-4
 
 // Control flags
 #define TEMPORAL_ACCUMULATION
 #define RUSSIAN_ROULETTE
 // #define RAYMARCH_ORDER1
+#define GRADIENT_GUIDING
 
 // Illumination types
 // #define POINT_ILLUMINATION
@@ -62,8 +65,8 @@ cbuffer ConfigBuffer : register(b4)
     int n_bounces;
     float ambient_trace;
     int compressive_accumulation;
-    int dummy2;
-    int dummy3;
+    float guiding_strength;
+    float guiding_max_g;
 };
 
 struct RNG {
@@ -178,6 +181,14 @@ float get_halo(float3 rp) {
     return 0.01 * galaxy_weight * deposit;
 }
 
+float3 get_halo_gradient(float3 rp, float dp) {
+    float3 gradient;
+    gradient.x = get_halo(rp + float3(dp, 0.0, 0.0)) - get_halo(rp - float3(dp, 0.0, 0.0));
+    gradient.y = get_halo(rp + float3(0.0, dp, 0.0)) - get_halo(rp - float3(0.0, dp, 0.0));
+    gradient.z = get_halo(rp + float3(0.0, 0.0, dp)) - get_halo(rp - float3(0.0, 0.0, dp));
+    return gradient;
+}
+
 float3 get_emitted_L(float rho) {
     return tex_false_color.SampleLevel(tex_false_color_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
 }
@@ -198,13 +209,13 @@ float delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_m
 	return t;
 }
 
-float occlusion_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
+float occlusion_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, float subsampling, inout RNG rng) {
 	float sigma_max_inv = rho_max_inv / (sigma_a + sigma_s);
     float t = t_min;
     float rho_sum = 0.0;
     int iSteps = 0;
 	do {
-		t += 10.0 * delta_step(sigma_max_inv, rng.random_float());
+		t += subsampling * delta_step(sigma_max_inv, rng.random_float());
 		rho_sum += get_rho(rp + t * rd);
         ++iSteps;
 	} while (t <= t_max);
@@ -212,6 +223,38 @@ float occlusion_tracking(float3 rp, float3 rd, float t_min, float t_max, float r
     float transmittance = exp(-(sigma_s + sigma_a) * rho_sum * (t_max - t_min));
 
 	return transmittance;
+}
+
+void generate_basis(float3 dir, out float3 v1, out float3 v2)
+{
+	float inv_norm = 1.0 / sqrt(dir.x*dir.x + dir.z*dir.z);
+	v1 = float3(dir.z * inv_norm, 0.0, -dir.x * inv_norm);
+	v2 = cross(dir, v1);
+}
+
+float3 sample_HG(float3 v, float g, inout RNG rng)
+{
+	float xi = rng.random_float();
+	float cos_theta;
+	if (abs(g) > 1.e-3)	{
+        float sqr_term = (1.0 - g*g) / (1.0 - g + 2.0*g*xi);
+		cos_theta = (1.0 + g*g - sqr_term*sqr_term) / (2.0 * abs(g));
+	} else {
+		cos_theta = 1.0 - 2.0*xi;
+	}
+
+    float sin_theta = sqrt(max(0.0, 1.0 - cos_theta*cos_theta));
+	float phi = PI2 * rng.random_float();
+    float3 v1, v2;
+    generate_basis(v, v1, v2);
+    return sin_theta * cos(phi) * v1 +
+           sin_theta * sin(phi) * v2 +
+           cos_theta * v;
+}
+
+float pdf_HG(float g, float cos_angle) {
+    float denominator_cubicrt = sqrt(max(1.0 + g*g - 2.0*g*cos_angle, NUMERICAL_EPSILON));
+    return (1.0 - g*g) / (denominator_cubicrt * denominator_cubicrt * denominator_cubicrt);
 }
 
 float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBounces, inout RNG rng) {
@@ -247,12 +290,13 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         float3 ld = lp - rp;
         float l_distance = length(ld);
         ld = normalize(ld);
-        float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, rng);
-        emission += 100.0 * galaxy_weight * transmittance / max(l_distance * l_distance, 1.0);
+        // Inefficient but unbiased binary visibility estimator
         // float t_occlusion = delta_tracking(rp, ld, 0.0, l_distance, rho_max_inv, rng);
-        // if (t_occlusion > l_distance) {
+        // if (t_occlusion > l_distance)
         //     emission += 100.0 * galaxy_weight /  max(l_distance * l_distance, 1.0);
-        // }
+        // Modified delta-tracking transmittance estimator
+        float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
+        emission += 100.0 * galaxy_weight * transmittance / max(l_distance * l_distance, 1.0);
         #endif
         #ifdef TRACE_ILLUMINATION
         emission += get_emitted_L(rho_event);
@@ -268,7 +312,22 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         #endif
 
         // Sample new direction and continue the walk
+        #ifdef GRADIENT_GUIDING
+        float3 grad = get_halo_gradient(rp, 1.0);
+        if (guiding_strength > INTENSITY_EPSILON && any(abs(grad) > float3(INTENSITY_EPSILON, INTENSITY_EPSILON, INTENSITY_EPSILON))) { 
+            float g = min(guiding_strength * length(grad), guiding_max_g);
+            float3 grad_norm = normalize(grad);
+            float3 rd_new = sample_HG(grad_norm, g, rng);
+            float pdf = pdf_HG(g, dot(grad_norm, rd_new));
+            throughput /= pdf;
+            rd = rd_new;
+        } else {
+            rd = uniform_unit_sphere(rng);
+        }
+
+        #else
         rd = uniform_unit_sphere(rng);
+        #endif
     }
     return L;
 }
