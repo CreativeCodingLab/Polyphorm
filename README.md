@@ -7,6 +7,8 @@
 
 **The visualization component** facilitates analysis tasks of the estimated network. Thanks to the interactive nature of *Polyphorm* we can observe changes of the estimate in response to changing MCPM parameters. The main concern is whether the reconstruction fits the input data (i.e. all the input points are contained in it) as well as the plausibility of the obtained filamentary structures.
 
+**A selection of videos** demonstrating the software is available [here](https://docs.google.com/document/d/1V858oljGT1gu-gTVMAZOqtZjFEtK_rULsCg_VDeXulk/edit?usp=sharing).
+
 ![title.png](docs/title.png)
 
 ## Requirements
