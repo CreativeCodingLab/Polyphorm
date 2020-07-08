@@ -20,13 +20,13 @@
 //====================================================================
 
 // Work regimes: Uncomment one and only one of these...
-#define REGIME_SDSS
+// #define REGIME_SDSS
 // #define REGIME_FRB
 // #define REGIME_BOLSHOI_PLANCK
 // #define REGIME_ROCKSTAR
 // #define REGIME_POISSON
 // #define REGIME_CONNECTOME
-// #define REGIME_EMBEDDING
+#define REGIME_EMBEDDING
 
 // #define VELOCITY_ANALYSIS
 
@@ -34,7 +34,8 @@
 #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
 //#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_huge_t=10.3"
 // #define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
-#define FALSE_COLOR_PALETTE "data/palette_hot.tga"
+#define COLOR_PALETTE_TRACE "data/palette_gogh_green.tga"
+#define COLOR_PALETTE_DATA "data/palette_hot.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 2.55;
 const float MOVE_ANGLE = 10.0;
@@ -47,8 +48,8 @@ const float SAMPLING_EXPONENT = 3.5;
 #ifdef REGIME_BOLSHOI_PLANCK
 // #define DATASET_NAME "data/BP/bpdat_boxDist_trimDist_trimMass_t=0.3548_subrate=1"
 #define DATASET_NAME "data/BP/bpdat_boxDist_trimDist_trimMass_t=0.05_subrate=1_ROTATED"
-// #define FALSE_COLOR_PALETTE "data/palette_sunset2.tga"
-#define FALSE_COLOR_PALETTE "data/palette_hot.tga"
+// #define COLOR_PALETTE_TRACE "data/palette_sunset2.tga"
+#define COLOR_PALETTE_TRACE "data/palette_gogh_green.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 2.5;
 const float MOVE_ANGLE = 10.0;
@@ -60,37 +61,46 @@ const float SAMPLING_EXPONENT = 3.0;
 
 #ifdef REGIME_FRB
 #define DATASET_NAME "data/FRB/frb_field_cigaleMass_t=0.0_z=0.01-0.1"
-#define FALSE_COLOR_PALETTE "data/palette_sunset3.tga"
+#define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
 #endif
 
 #ifdef REGIME_ROCKSTAR
 #define DATASET_NAME "data/MassiveNuS/rockstar_mnv0.10000_om0.30000_As2.1000_out_66t=0.0roi=256.0"
-#define FALSE_COLOR_PALETTE "data/palette_magma.tga"
+#define COLOR_PALETTE_TRACE "data/palette_magma.tga"
 #endif
 
 #ifdef REGIME_POISSON
-#define DATASET_NAME "data/Poisson/regular_4096_3d"
+#define DATASET_NAME "data/Conduits/poisson_256_2d_conduits_n_levels=100_ratio=1.02"
+// #define DATASET_NAME "data/Poisson/regular_4096_3d"
 // #define DATASET_NAME "data/Poisson/random_4096_3d"
 // #define DATASET_NAME "data/Poisson/poisson_4096_2d_3d"
 // #define DATASET_NAME "data/Poisson/poisson_256_2d_3d_flattened"
-#define FALSE_COLOR_PALETTE "data/palette_hot.tga"
+#define COLOR_PALETTE_TRACE "data/palette_hot.tga"
+const float SENSE_SPREAD = 20.0;
+const float SENSE_DISTANCE = 7.5;
+const float MOVE_ANGLE = 10.0;
+const float MOVE_DISTANCE = 0.1;
+const float AGENT_DEPOSIT = 0.0;
+const float PERSISTENCE = 0.96;
+const float SAMPLING_EXPONENT = 4.5;
 #endif
 
 #ifdef REGIME_CONNECTOME
 #define DATASET_NAME "data/Connectome/connectome0_XYZW"
-#define FALSE_COLOR_PALETTE "data/palette_magneto2.tga"
+#define COLOR_PALETTE_TRACE "data/palette_magneto2.tga"
 #endif
 
 #ifdef REGIME_EMBEDDING
-#define DATASET_NAME "data/Embeddings/W2V_UMAP_params_15_n=296630"
-#define FALSE_COLOR_PALETTE "data/palette_magma.tga"
+#define DATASET_NAME "data/Embeddings/wind_embed_n=3834"
+#define COLOR_PALETTE_TRACE "data/palette_magma.tga"
+#define COLOR_PALETTE_DATA "data/palette_gogh_blue.tga"
 const float SENSE_SPREAD = 20.0;
-const float SENSE_DISTANCE = 3.0;
+const float SENSE_DISTANCE = 4.0;
 const float MOVE_ANGLE = 10.0;
-const float MOVE_DISTANCE = 0.2;
+const float MOVE_DISTANCE = 0.1;
 const float AGENT_DEPOSIT = 0.0;
-const float PERSISTENCE = 0.93;
-const float SAMPLING_EXPONENT = 3.5;
+const float PERSISTENCE = 0.91;
+const float SAMPLING_EXPONENT = 3.2;
 #endif
 
 // Other hardwired settings ==========================================
@@ -208,7 +218,7 @@ struct RenderingConfig {
     float ambient_trace;
     int compressive_accumulation;
     float guiding_strength;
-    float guiding_max_g;
+    float scattering_anisotropy;
 };
 
 struct StatisticsConfig {
@@ -463,12 +473,13 @@ int main(int argc, char **argv)
     #endif
     Texture2D display_tex = graphics::get_texture2D(NULL, window_width, window_height, DXGI_FORMAT_R32G32B32A32_FLOAT, 16);
     Texture2D display_tex_uint = graphics::get_texture2D(NULL, window_width, window_height, DXGI_FORMAT_R32_UINT, 4);
-    Texture2D false_color_tex = graphics::load_texture2D(FALSE_COLOR_PALETTE);
+    Texture2D palette_trace_tex = graphics::load_texture2D(COLOR_PALETTE_TRACE);
+    Texture2D palette_data_tex = graphics::load_texture2D(COLOR_PALETTE_DATA);
 
     TextureSampler tex_sampler_trace = graphics::get_texture_sampler(CLAMP, D3D11_FILTER_ANISOTROPIC);
     TextureSampler tex_sampler_deposit = graphics::get_texture_sampler(CLAMP, D3D11_FILTER_ANISOTROPIC);
     TextureSampler tex_sampler_display = graphics::get_texture_sampler();
-    TextureSampler tex_sampler_false_color = graphics::get_texture_sampler();
+    TextureSampler tex_sampler_color_palette = graphics::get_texture_sampler();
     
 	graphics::set_blend_state(BlendType::ALPHA);
 
@@ -645,7 +656,7 @@ int main(int argc, char **argv)
     rendering_config.ambient_trace = 0.0;
     rendering_config.compressive_accumulation = 1;
     rendering_config.guiding_strength = 0.1;
-    rendering_config.guiding_max_g = 0.6;
+    rendering_config.scattering_anisotropy = 0.9;
     ConstantBuffer rendering_settings_buffer = graphics::get_constant_buffer(sizeof(RenderingConfig));
     graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
     graphics::set_constant_buffer(&rendering_settings_buffer, 4);
@@ -808,6 +819,7 @@ int main(int argc, char **argv)
                     << rendering_config.trim_density << " " << rendering_config.highlight_density << " "
                     << rendering_config.overdensity_threshold_low << " " << rendering_config.overdensity_threshold_high << std::endl;
                 visu_state << rendering_config.sigma_s << " " << rendering_config.sigma_a << " " << rendering_config.sigma_e << " "
+                    << rendering_config.scattering_anisotropy << " "
                     << rendering_config.exposure << " " << rendering_config.trace_max << " " << rendering_config.n_bounces << " "
                     << rendering_config.ambient_trace << " " << rendering_config.compressive_accumulation << std::endl;
                 visu_state.close();
@@ -825,6 +837,7 @@ int main(int argc, char **argv)
                     >> rendering_config.trim_density >> rendering_config.highlight_density
                     >> rendering_config.overdensity_threshold_low >> rendering_config.overdensity_threshold_high;
                 visu_state >> rendering_config.sigma_s >> rendering_config.sigma_a >> rendering_config.sigma_e
+                    >> rendering_config.scattering_anisotropy
                     >> rendering_config.exposure >> rendering_config.trace_max >> rendering_config.n_bounces
                     >> rendering_config.ambient_trace >> rendering_config.compressive_accumulation;
                 visu_state.close();
@@ -1038,8 +1051,8 @@ int main(int argc, char **argv)
                 graphics::set_texture_sampler(&tex_sampler_trace, 0);
                 if (vis_mode == VisualizationMode::VM_VOLUME) {
                     graphics::set_pixel_shader(&pixel_shader);
-                    graphics::set_texture(&false_color_tex, 1);
-                    graphics::set_texture_sampler(&tex_sampler_false_color, 1);
+                    graphics::set_texture(&palette_trace_tex, 1);
+                    graphics::set_texture_sampler(&tex_sampler_color_palette, 1);
                 }
                 else if (vis_mode == VisualizationMode::VM_VOLUME_HIGHLIGHT) {
                     graphics::set_pixel_shader(&ps_volume_highlight);
@@ -1099,8 +1112,10 @@ int main(int argc, char **argv)
                         graphics::set_texture_sampled_compute(&trail_tex_B, 2);
                     }
                     graphics::set_texture_sampler(&tex_sampler_deposit, 2);
-                    graphics::set_texture_sampled_compute(&false_color_tex, 3);
-                    graphics::set_texture_sampler_compute(&tex_sampler_false_color, 3);
+                    graphics::set_texture_sampled_compute(&palette_trace_tex, 3);
+                    graphics::set_texture_sampler_compute(&tex_sampler_color_palette, 3);
+                    graphics::set_texture_sampled_compute(&palette_data_tex, 4);
+                    graphics::set_texture_sampler_compute(&tex_sampler_color_palette, 4);
                     graphics::run_compute(
                         rendering_config.screen_width / int(PT_GROUP_SIZE_X),
                         rendering_config.screen_height / int(PT_GROUP_SIZE_Y),
@@ -1298,7 +1313,7 @@ int main(int argc, char **argv)
             simulation_config.move_distance = measure_world_to_grid(md_mpc, WORLD_SIZE_X, float(GRID_RESOLUTION_X));
             reset_pt |= ui::add_slider(&panel, "AGENT DEPOSIT", &simulation_config.deposit_value, 0.0, 10.0);
             reset_pt |= ui::add_slider(&panel, "PERSISTENCE", &simulation_config.decay_factor, 0.8, 0.995);
-            // reset_pt |= ui::add_slider(&panel, "CENTER ATTRACTION", &simulation_config.center_attraction, 0.0, 1.0);
+            // reset_pt |= ui::add_slider(&panel, "CENTER ATTRACTION", &simulation_config.center_attraction, 0.0, 10.0);
             reset_pt |= ui::add_slider(&panel, "SAMPLING EXP", &simulation_config.move_sense_coef, 0.0001, 10.0);
 
             float swgt = log(rendering_config.sample_weight) / log(10.0);
@@ -1350,13 +1365,13 @@ int main(int argc, char **argv)
             vis_mode = is_toggled? VisualizationMode::VM_VOLUME_HIGHLIGHT : vis_mode;
             if (vis_mode == VisualizationMode::VM_VOLUME_HIGHLIGHT) {
                 ui::add_slider(&panel, "OPTI THICKNESS", &rendering_config.optical_thickness, 0.0, 1.0);
+                float hgd = log(rendering_config.highlight_density) / log(HISTOGRAM_BASE);
+                ui::add_slider(&panel, "HGLGHT DENSITY", &hgd, -5.0, 9.0);
+                rendering_config.highlight_density = math::pow(HISTOGRAM_BASE, hgd);
                 float trd = log(rendering_config.trim_density) / log(HISTOGRAM_BASE);
                 reset_pt |= ui::add_slider(&panel, "TRIM DENSITY", &trd, -5.0, 9.0);
                 rendering_config.trim_density = math::pow(HISTOGRAM_BASE, trd);
                 ui::add_slider(&panel, "BACKGROUND COL", &background_color, 0.0, 1.0);
-                float hgd = log(rendering_config.highlight_density) / log(HISTOGRAM_BASE);
-                ui::add_slider(&panel, "HGLGHT DENSITY", &hgd, -5.0, 9.0);
-                rendering_config.highlight_density = math::pow(HISTOGRAM_BASE, hgd);
             }
 
             is_toggled = vis_mode == VisualizationMode::VM_VOLUME_OVERDENSITY;
@@ -1398,28 +1413,28 @@ int main(int argc, char **argv)
             if (vis_mode == VisualizationMode::VM_PATH_TRACING) {
                 float sigma_t = rendering_config.sigma_a + rendering_config.sigma_s;
                 float albedo = sigma_t < 1.e-5 ? 0.0 : rendering_config.sigma_s / sigma_t;
-                reset_pt |= ui::add_slider(&panel, "SIGMA_T", &sigma_t, 0.0, 1.0);
+                reset_pt |= ui::add_slider(&panel, "SIGMA_T", &sigma_t, 0.0, 5.0);
                 reset_pt |= ui::add_slider(&panel, "ALBEDO", &albedo, 0.0, 0.99);
                 rendering_config.sigma_a = (1.0 - albedo) * sigma_t;
                 rendering_config.sigma_s = albedo * sigma_t;
                 reset_pt |= ui::add_slider(&panel, "SIGMA_E", &rendering_config.sigma_e, 0.0, 100.0);
-                reset_pt |= ui::add_slider(&panel, "AMBI TRCE", &rendering_config.ambient_trace, 0.0, 0.1);
+                reset_pt |= ui::add_slider(&panel, "ANISOTROPY", &rendering_config.scattering_anisotropy, 0.1, 0.98);
+                reset_pt |= ui::add_slider(&panel, "AMBI TRCE", &rendering_config.ambient_trace, 0.0, 1.0);
 
                 float f_bounces = float(rendering_config.n_bounces);
                 reset_pt |= ui::add_slider(&panel, "N BOUNCES", &f_bounces, 0.0, 30.0);
                 rendering_config.n_bounces = int(f_bounces);
+                float trmax = log(rendering_config.trace_max) / log(HISTOGRAM_BASE);
+                reset_pt |= ui::add_slider(&panel, "TRACE_MAX", &trmax, -4.0, 4.0);
+                rendering_config.trace_max = math::pow(HISTOGRAM_BASE, trmax);
+                // reset_pt |= ui::add_slider(&panel, "GUIDING MAG", &rendering_config.guiding_strength, 0.0, 0.6);
+
                 float expo = log(rendering_config.exposure) / log(10.0);
                 if (bool(rendering_config.compressive_accumulation))
                     reset_pt |= ui::add_slider(&panel, "EXPOSURE", &expo, -5.0, 5.0);
                 else
                     ui::add_slider(&panel, "EXPOSURE", &expo, -5.0, 5.0);
                 rendering_config.exposure = math::pow(10.0, expo);
-                float trmax = log(rendering_config.trace_max) / log(HISTOGRAM_BASE);
-                reset_pt |= ui::add_slider(&panel, "TRACE_MAX", &trmax, -4.0, 4.0);
-                rendering_config.trace_max = math::pow(HISTOGRAM_BASE, trmax);
-
-                reset_pt |= ui::add_slider(&panel, "GUIDING MAG", &rendering_config.guiding_strength, 0.0, 0.5);
-                reset_pt |= ui::add_slider(&panel, "GUIDING MAXG", &rendering_config.guiding_max_g, 0.1, 0.99);
 
                 bool compress_L = bool(rendering_config.compressive_accumulation);
                 reset_pt |= ui::add_toggle(&panel, "COMPRESSIVE EXPOSURE", &compress_L);
@@ -1455,10 +1470,11 @@ int main(int argc, char **argv)
     graphics::release(&trace_tex);
     graphics::release(&display_tex);
     graphics::release(&display_tex_uint);
-    graphics::release(&false_color_tex);
+    graphics::release(&palette_trace_tex);
+    graphics::release(&palette_data_tex);
     graphics::release(&tex_sampler_trace);
     graphics::release(&tex_sampler_deposit);
-    graphics::release(&tex_sampler_false_color);
+    graphics::release(&tex_sampler_color_palette);
     graphics::release(&config_buffer);
     graphics::release(&particles_buffer_x);
     graphics::release(&particles_buffer_y);

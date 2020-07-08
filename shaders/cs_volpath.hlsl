@@ -10,21 +10,23 @@
 // Control flags
 #define TEMPORAL_ACCUMULATION
 #define RUSSIAN_ROULETTE
-// #define RAYMARCH_ORDER1
-#define GRADIENT_GUIDING
+// #define GRADIENT_GUIDING
+// #define GRADIENT_GUIDING_MULTISCALE
 
 // Illumination types
 // #define POINT_ILLUMINATION
 #define HALO_ILLUMINATION
-// #define TRACE_ILLUMINATION
+#define TRACE_ILLUMINATION
 
 RWTexture2D<float4> tex_accumulator: register(u0);
 Texture3D tex_trace : register(t1);
 SamplerState tex_trace_sampler : register(s1);
 Texture3D tex_deposit : register(t2);
 SamplerState tex_deposit_sampler : register(s2);
-Texture2D tex_false_color : register(t3);
-SamplerState tex_false_color_sampler : register(s3);
+Texture2D tex_palette_trace : register(t3);
+SamplerState tex_palette_trace_sampler : register(s3);
+Texture2D tex_palette_data : register(t4);
+SamplerState tex_palette_data_sampler : register(s4);
 
 cbuffer ConfigBuffer : register(b4)
 {
@@ -66,7 +68,7 @@ cbuffer ConfigBuffer : register(b4)
     float ambient_trace;
     int compressive_accumulation;
     float guiding_strength;
-    float guiding_max_g;
+    float scattering_anisotropy;
 };
 
 struct RNG {
@@ -168,7 +170,7 @@ float3 tonemap(float3 L, float exposure) {
 }
 
 float trace_to_rho(float trace) {
-    return max(trace - trim_density, 0.0) * sample_weight + ambient_trace;
+    return sample_weight * (max(trace - trim_density, 0.0) + ambient_trace);
 }
 
 float get_rho(float3 rp) {
@@ -177,8 +179,8 @@ float get_rho(float3 rp) {
 }
 
 float get_halo(float3 rp) {
-    float deposit = tex_deposit.SampleLevel(tex_deposit_sampler, rp / float3(grid_x, grid_y, grid_z), 0).r;
-    return 0.01 * galaxy_weight * deposit;
+    float halo = tex_deposit.SampleLevel(tex_deposit_sampler, rp / float3(grid_x, grid_y, grid_z), 0).r;
+    return 0.01 * galaxy_weight * halo;
 }
 
 float3 get_halo_gradient(float3 rp, float dp) {
@@ -186,11 +188,15 @@ float3 get_halo_gradient(float3 rp, float dp) {
     gradient.x = get_halo(rp + float3(dp, 0.0, 0.0)) - get_halo(rp - float3(dp, 0.0, 0.0));
     gradient.y = get_halo(rp + float3(0.0, dp, 0.0)) - get_halo(rp - float3(0.0, dp, 0.0));
     gradient.z = get_halo(rp + float3(0.0, 0.0, dp)) - get_halo(rp - float3(0.0, 0.0, dp));
-    return gradient;
+    return gradient / dp;
 }
 
-float3 get_emitted_L(float rho) {
-    return tex_false_color.SampleLevel(tex_false_color_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
+float3 get_emitted_trace_L(float rho) {
+    return tex_palette_trace.SampleLevel(tex_palette_trace_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
+}
+
+float3 get_emitted_data_L(float rho) {
+    return tex_palette_data.SampleLevel(tex_palette_data_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
 }
 
 float delta_step(float sigma_max_inv, float xi) {
@@ -282,9 +288,12 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         // Get emitted light
         float3 emission = float3(0.0, 0.0, 0.0);
+        #ifdef TRACE_ILLUMINATION
+        emission += get_emitted_trace_L(rho_event);
+        #endif
         #ifdef HALO_ILLUMINATION
         float halo_event = get_halo(rp);
-        emission += get_emitted_L(halo_event);
+        emission += get_emitted_data_L(halo_event);
         #endif
         #ifdef POINT_ILLUMINATION
         float3 ld = lp - rp;
@@ -297,9 +306,6 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         // Modified delta-tracking transmittance estimator
         float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
         emission += 100.0 * galaxy_weight * transmittance / max(l_distance * l_distance, 1.0);
-        #endif
-        #ifdef TRACE_ILLUMINATION
-        emission += get_emitted_L(rho_event);
         #endif
         L += throughput * rho_event * sigma_e * emission;
 
@@ -315,7 +321,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         #ifdef GRADIENT_GUIDING
         float3 grad = get_halo_gradient(rp, 1.0);
         if (guiding_strength > INTENSITY_EPSILON && any(abs(grad) > float3(INTENSITY_EPSILON, INTENSITY_EPSILON, INTENSITY_EPSILON))) { 
-            float g = min(guiding_strength * length(grad), guiding_max_g);
+            float g = min(guiding_strength * length(grad), scattering_anisotropy);
             float3 grad_norm = normalize(grad);
             float3 rd_new = sample_HG(grad_norm, g, rng);
             float pdf = pdf_HG(g, dot(grad_norm, rd_new));
@@ -324,9 +330,35 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         } else {
             rd = uniform_unit_sphere(rng);
         }
-
         #else
-        rd = uniform_unit_sphere(rng);
+        #ifdef GRADIENT_GUIDING_MULTISCALE
+        if (guiding_strength > INTENSITY_EPSILON) {
+            float3 grad1 = get_halo_gradient(rp, 1.0); float mag1 = length(grad1);
+            float3 grad2 = get_halo_gradient(rp, 2.0); float mag2 = length(grad2);
+            float3 grad4 = get_halo_gradient(rp, 4.0); float mag4 = length(grad4);
+            float3 grad8 = get_halo_gradient(rp, 8.0); float mag8 = length(grad8);
+            float magnorm = mag1 + mag2 + mag4 + mag8;
+            float3 grad = grad1;
+            float xi = rng.random_float();
+            if (xi > (mag1) / magnorm) grad = grad2;
+            if (xi > (mag1 + mag2) / magnorm) grad = grad4;
+            if (xi > (mag1 + mag2 + mag4) / magnorm) grad = grad8;
+            if (any(abs(grad) > float3(INTENSITY_EPSILON, INTENSITY_EPSILON, INTENSITY_EPSILON))) {
+                float g = min(guiding_strength * length(grad), guiding_max_g);
+                float3 grad_norm = normalize(grad);
+                float3 rd_new = sample_HG(grad_norm, g, rng);
+                float pdf = pdf_HG(g, dot(grad_norm, rd_new));
+                throughput /= pdf;
+                rd = rd_new;
+            } else {
+                rd = uniform_unit_sphere(rng);
+            }
+        } else {
+            rd = uniform_unit_sphere(rng);
+        }
+        #else
+        rd = sample_HG(rd, scattering_anisotropy, rng);
+        #endif
         #endif
     }
     return L;
@@ -388,36 +420,39 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         rp = r0;
         rd = r1 - r0;
         
-        #ifdef RAYMARCH_ORDER1
-        int iSteps = int(length(rd));
-        float3 dd = rd / float(iSteps);
-        rd = normalize(rd);
-        float tau = 0.0;
-        rp += (rng.random_float() - 0.5) * dd;
-        float rho0 = get_rho(rp), rho1;
-        int subsampling = 200 * min(n_bounces, 1);
-        for (int i = 0; i < iSteps; ++i) {
-            rp += dd;
-            rho1 = get_rho(rp);
-            float rho = 0.5 * (rho0 + rho1);
+        if (sigma_s < INTENSITY_EPSILON) {
+        // If there's no appreciable scattering, we can just use the
+        // emission-absorption model and ray-march the solution
+            int iSteps = int(length(rd));
+            float3 dd = rd / float(iSteps);
+            rd = normalize(rd);
+            float tau = 0.0;
+            rp += (rng.random_float() - 0.5) * dd;
+            float rho0 = get_rho(rp), rho1;
+            for (int i = 0; i < iSteps; ++i) {
+                rp += dd;
+                rho1 = get_rho(rp);
+                float rho = 0.5 * (rho0 + rho1);
 
-            tau += rho;
-            float transmittance = exp(-(sigma_a + sigma_s) * tau);
-
-            float3 emission = sigma_e * get_emitted_L(rho);
-            float3 scattering = float3(0.0, 0.0, 0.0);
-            if (sigma_s > INTENSITY_EPSILON && rng.random_float() < 1.0 / float(subsampling)) {
-                float3 rd_new = uniform_unit_sphere(rng);
-                scattering = sigma_s * get_incident_L(rp - rng.random_float() * dd, rd_new, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces, rng);
+                tau += rho;
+                float transmittance = exp(-(sigma_a + sigma_s) * tau);
+                float3 emission = float3(0.0, 0.0, 0.0);
+                #ifdef TRACE_ILLUMINATION
+                emission += get_emitted_trace_L(rho);
+                #endif
+                #ifdef HALO_ILLUMINATION
+                float halo_event = get_halo(rp);
+                emission += get_emitted_data_L(halo_event);
+                #endif
+                
+                path_L += transmittance * rho * sigma_e * emission;
+                rho0 = rho1;
             }
-
-            path_L += transmittance * (emission + scattering) * rho;
-            rho0 = rho1;
+        } else {
+        // If there's significant scattering, we need the full path-traced solution
+            rd = normalize(rd);
+            path_L = get_incident_L(rp, rd, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces + 1, rng);
         }
-        #else
-        rd = normalize(rd);
-        path_L = get_incident_L(rp, rd, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces + 1, rng);
-        #endif
     }
 
     // Accumulate LDR or HDR values?
