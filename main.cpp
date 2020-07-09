@@ -20,13 +20,13 @@
 //====================================================================
 
 // Work regimes: Uncomment one and only one of these...
-// #define REGIME_SDSS
+#define REGIME_SDSS
 // #define REGIME_FRB
 // #define REGIME_BOLSHOI_PLANCK
 // #define REGIME_ROCKSTAR
 // #define REGIME_POISSON
 // #define REGIME_CONNECTOME
-#define REGIME_EMBEDDING
+// #define REGIME_EMBEDDING
 
 // #define VELOCITY_ANALYSIS
 
@@ -91,7 +91,7 @@ const float SAMPLING_EXPONENT = 4.5;
 #endif
 
 #ifdef REGIME_EMBEDDING
-#define DATASET_NAME "data/Embeddings/wind_embed_n=3834"
+#define DATASET_NAME "data/Embeddings/back_embed_n=18266"
 #define COLOR_PALETTE_TRACE "data/palette_magma.tga"
 #define COLOR_PALETTE_DATA "data/palette_gogh_blue.tga"
 const float SENSE_SPREAD = 20.0;

@@ -331,34 +331,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
             rd = uniform_unit_sphere(rng);
         }
         #else
-        #ifdef GRADIENT_GUIDING_MULTISCALE
-        if (guiding_strength > INTENSITY_EPSILON) {
-            float3 grad1 = get_halo_gradient(rp, 1.0); float mag1 = length(grad1);
-            float3 grad2 = get_halo_gradient(rp, 2.0); float mag2 = length(grad2);
-            float3 grad4 = get_halo_gradient(rp, 4.0); float mag4 = length(grad4);
-            float3 grad8 = get_halo_gradient(rp, 8.0); float mag8 = length(grad8);
-            float magnorm = mag1 + mag2 + mag4 + mag8;
-            float3 grad = grad1;
-            float xi = rng.random_float();
-            if (xi > (mag1) / magnorm) grad = grad2;
-            if (xi > (mag1 + mag2) / magnorm) grad = grad4;
-            if (xi > (mag1 + mag2 + mag4) / magnorm) grad = grad8;
-            if (any(abs(grad) > float3(INTENSITY_EPSILON, INTENSITY_EPSILON, INTENSITY_EPSILON))) {
-                float g = min(guiding_strength * length(grad), guiding_max_g);
-                float3 grad_norm = normalize(grad);
-                float3 rd_new = sample_HG(grad_norm, g, rng);
-                float pdf = pdf_HG(g, dot(grad_norm, rd_new));
-                throughput /= pdf;
-                rd = rd_new;
-            } else {
-                rd = uniform_unit_sphere(rng);
-            }
-        } else {
-            rd = uniform_unit_sphere(rng);
-        }
-        #else
         rd = sample_HG(rd, scattering_anisotropy, rng);
-        #endif
         #endif
     }
     return L;
