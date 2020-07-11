@@ -11,9 +11,9 @@
 #define TEMPORAL_ACCUMULATION
 #define RUSSIAN_ROULETTE
 // #define GRADIENT_GUIDING
-// #define GRADIENT_GUIDING_MULTISCALE
 
 // Illumination types
+#define WHITESKY_ILLUMINATION
 // #define POINT_ILLUMINATION
 #define HALO_ILLUMINATION
 #define TRACE_ILLUMINATION
@@ -199,6 +199,14 @@ float3 get_emitted_data_L(float rho) {
     return tex_palette_data.SampleLevel(tex_palette_data_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
 }
 
+float get_sky_L(float3 rd) {
+    #ifdef WHITESKY_ILLUMINATION
+    return float3(sigma_e, sigma_e, sigma_e);
+    #else
+    return float3(0.0, 0.0, 0.0);
+    #endif 
+}
+
 float delta_step(float sigma_max_inv, float xi) {
 	return -log(max(xi, 0.001)) * sigma_max_inv;
 }
@@ -282,7 +290,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         float2 t = ray_AABB_intersection(rp, rd, c_low, c_high);
         float t_event = delta_tracking(rp, rd, 0.0, t.y, rho_max_inv, rng);
         if (t_event >= t.y)
-            return L;
+            return L + throughput * get_sky_L(rd);
         rp += t_event * rd;
         float rho_event = get_rho(rp);
 
@@ -426,6 +434,8 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             rd = normalize(rd);
             path_L = get_incident_L(rp, rd, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces + 1, rng);
         }
+    } else {
+        path_L = get_sky_L(rd);
     }
 
     // Accumulate LDR or HDR values?

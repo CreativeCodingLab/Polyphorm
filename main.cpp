@@ -70,12 +70,13 @@ const float SAMPLING_EXPONENT = 3.0;
 #endif
 
 #ifdef REGIME_POISSON
-#define DATASET_NAME "data/Conduits/poisson_256_2d_conduits_n_levels=100_ratio=1.02"
+#define DATASET_NAME "data/Conduits/poisson_256_2d_conduits_n_levels=100_ratio=1.05"
 // #define DATASET_NAME "data/Poisson/regular_4096_3d"
 // #define DATASET_NAME "data/Poisson/random_4096_3d"
 // #define DATASET_NAME "data/Poisson/poisson_4096_2d_3d"
 // #define DATASET_NAME "data/Poisson/poisson_256_2d_3d_flattened"
 #define COLOR_PALETTE_TRACE "data/palette_hot.tga"
+#define COLOR_PALETTE_DATA "data/palette_hot.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 7.5;
 const float MOVE_ANGLE = 10.0;
@@ -91,16 +92,16 @@ const float SAMPLING_EXPONENT = 4.5;
 #endif
 
 #ifdef REGIME_EMBEDDING
-#define DATASET_NAME "data/Embeddings/back_embed_n=18266"
+#define DATASET_NAME "data/Embeddings/W2V_UMAP_params_15_n=296630"
 #define COLOR_PALETTE_TRACE "data/palette_magma.tga"
 #define COLOR_PALETTE_DATA "data/palette_gogh_blue.tga"
 const float SENSE_SPREAD = 20.0;
-const float SENSE_DISTANCE = 4.0;
+const float SENSE_DISTANCE = 3.0;
 const float MOVE_ANGLE = 10.0;
 const float MOVE_DISTANCE = 0.1;
 const float AGENT_DEPOSIT = 0.0;
 const float PERSISTENCE = 0.91;
-const float SAMPLING_EXPONENT = 3.2;
+const float SAMPLING_EXPONENT = 3.5;
 #endif
 
 // Other hardwired settings ==========================================
