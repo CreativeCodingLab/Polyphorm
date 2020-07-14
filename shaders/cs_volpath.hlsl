@@ -9,14 +9,14 @@
 
 // Control flags
 #define TEMPORAL_ACCUMULATION
-#define RUSSIAN_ROULETTE
+// #define RUSSIAN_ROULETTE
 // #define GRADIENT_GUIDING
 
 // Illumination types
 #define WHITESKY_ILLUMINATION
 // #define POINT_ILLUMINATION
-#define HALO_ILLUMINATION
-#define TRACE_ILLUMINATION
+// #define HALO_ILLUMINATION
+// #define TRACE_ILLUMINATION
 
 RWTexture2D<float4> tex_accumulator: register(u0);
 Texture3D tex_trace : register(t1);
@@ -69,6 +69,16 @@ cbuffer ConfigBuffer : register(b4)
     int compressive_accumulation;
     float guiding_strength;
     float scattering_anisotropy;
+
+    /* For Slime Mold Rendering */
+
+    float sigma1_s_r;
+    float sigma1_s_g;
+    float sigma1_s_b;
+    float sigma1_a_r;
+    float sigma1_a_g;
+    float sigma1_a_b;
+
 };
 
 struct RNG {
@@ -212,7 +222,7 @@ float delta_step(float sigma_max_inv, float xi) {
 }
 
 float delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
-	float sigma_max_inv = rho_max_inv / (sigma_a + sigma_s);
+	float sigma_max_inv = rho_max_inv / (sigma1_a_r + sigma1_s_r);    // this greater, steps greater
     float t = t_min;
     float event_rho = 0.0;
 	do {
@@ -277,6 +287,20 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     float albedo = sigma_s / (sigma_a + sigma_s);
     float rho_max_inv = 1.0 / trace_to_rho(trace_max);
 
+    // throughput and albedo are unique for each color channel (wavelength eventually)
+    float throughput_r = 1.0;
+    float throughput_g = 1.0;
+    float throughput_b = 1.0;
+    float albedo_r = sigma1_s_r / (sigma1_a_r + sigma1_s_r);
+    float albedo_g = sigma1_s_g / (sigma1_a_g + sigma1_s_g);
+    float albedo_b = sigma1_s_b / (sigma1_a_b + sigma1_s_b);
+
+    // Combining rgb for now since less code change is needed, eventually need an array for each wavelength
+    float3 throughput_rgb = float3(1.0, 1.0, 1.0);
+    float3 albedo_rgb = float3(sigma1_s_r / (sigma1_a_r + sigma1_s_r),
+                               sigma1_s_g / (sigma1_a_g + sigma1_s_g),
+                               sigma1_s_b / (sigma1_a_b + sigma1_s_b));
+
     #ifdef POINT_ILLUMINATION
     float3 trim_min = float3(trim_x_min, trim_y_min, trim_z_min);
     float3 trim_max = float3(trim_x_max, trim_y_max, trim_z_max);
@@ -290,19 +314,23 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         float2 t = ray_AABB_intersection(rp, rd, c_low, c_high);
         float t_event = delta_tracking(rp, rd, 0.0, t.y, rho_max_inv, rng);
         if (t_event >= t.y)
-            return L + throughput * get_sky_L(rd);
+            //return float3(1.0, 0.0, 0.0); // to see if it ever goes out-bound
+            return L + throughput_rgb * get_sky_L(rd);
         rp += t_event * rd;
         float rho_event = get_rho(rp);
 
         // Get emitted light
         float3 emission = float3(0.0, 0.0, 0.0);
+
         #ifdef TRACE_ILLUMINATION
         emission += get_emitted_trace_L(rho_event);
         #endif
+
         #ifdef HALO_ILLUMINATION
         float halo_event = get_halo(rp);
         emission += get_emitted_data_L(halo_event);
         #endif
+
         #ifdef POINT_ILLUMINATION
         float3 ld = lp - rp;
         float l_distance = length(ld);
@@ -315,14 +343,17 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
         emission += 100.0 * galaxy_weight * transmittance / max(l_distance * l_distance, 1.0);
         #endif
-        L += throughput * rho_event * sigma_e * emission;
+
+        L += throughput_rgb * rho_event * sigma_e * emission;
 
         // Adjust the path throughput (RR or modulate)
         #ifdef RUSSIAN_ROULETTE
-        if (rng.random_float() > albedo)
+        if (rng.random_float() > albedo_rgb[0] & 
+            rng.random_float() > albedo_rgb[1] &
+            rng.random_float() > albedo_rgb[2])
             return L;
         #else
-        throughput *= albedo;
+        throughput_rgb *= albedo_rgb;
         #endif
 
         // Sample new direction and continue the walk
@@ -401,7 +432,8 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         rp = r0;
         rd = r1 - r0;
         
-        if (sigma_s < INTENSITY_EPSILON) {
+        if (0) { // ignore ray marching
+        // if (sigma_s < INTENSITY_EPSILON) {
         // If there's no appreciable scattering, we can just use the
         // emission-absorption model and ray-march the solution
             int iSteps = int(length(rd));

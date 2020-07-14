@@ -220,6 +220,19 @@ struct RenderingConfig {
     int compressive_accumulation;
     float guiding_strength;
     float scattering_anisotropy;
+
+    /* For Slime Mold Rendering */
+    
+    float sigma1_s_r;
+    float sigma1_s_g;
+    float sigma1_s_b;
+    float sigma1_a_r;
+
+    float sigma1_a_g;
+    float sigma1_a_b;
+    int tmp1;
+    int tmp2;
+
 };
 
 struct StatisticsConfig {
@@ -653,11 +666,19 @@ int main(int argc, char **argv)
     rendering_config.camera_offset_x = 0.0;
     rendering_config.camera_offset_y = 0.0;
     rendering_config.exposure = 1.0;
-    rendering_config.n_bounces = 5;
+    rendering_config.n_bounces = 20;
     rendering_config.ambient_trace = 0.0;
     rendering_config.compressive_accumulation = 1;
     rendering_config.guiding_strength = 0.1;
     rendering_config.scattering_anisotropy = 0.9;
+
+    rendering_config.sigma1_s_r = 0.3;
+    rendering_config.sigma1_s_g = 0.3;
+    rendering_config.sigma1_s_b = 0.1;
+    rendering_config.sigma1_a_r = 0.1;
+    rendering_config.sigma1_a_g = 0.1;
+    rendering_config.sigma1_a_b = 0.5;
+
     ConstantBuffer rendering_settings_buffer = graphics::get_constant_buffer(sizeof(RenderingConfig));
     graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
     graphics::set_constant_buffer(&rendering_settings_buffer, 4);
