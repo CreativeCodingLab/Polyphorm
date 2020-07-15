@@ -465,12 +465,15 @@ int main(int argc, char **argv)
     printf("ps_volpath shader compiled...\n");
 
     // Textures for the simulation
-    Texture3D trail_tex_A = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
-    Texture3D trail_tex_B = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
+    // Texture3D trail_tex_A = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
+    // Texture3D trail_tex_B = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
+    Texture3D trail_tex_A = graphics::load_texture3D("export/deposit.dds");
+    Texture3D trail_tex_B = graphics::load_texture3D("export/deposit.dds");
     #ifdef VELOCITY_ANALYSIS
     Texture3D trace_tex = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16G16B16A16_FLOAT, 8);
     #else
-    Texture3D trace_tex = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
+    Texture3D trace_tex = graphics::load_texture3D("export/trace.dds");
+    // Texture3D trace_tex = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
     #endif
     Texture2D display_tex = graphics::get_texture2D(NULL, window_width, window_height, DXGI_FORMAT_R32G32B32A32_FLOAT, 16);
     Texture2D display_tex_uint = graphics::get_texture2D(NULL, window_width, window_height, DXGI_FORMAT_R32_UINT, 4);

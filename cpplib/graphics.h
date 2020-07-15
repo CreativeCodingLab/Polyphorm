@@ -271,6 +271,7 @@ namespace graphics
 
 	// Load/save texture to/from file
 	Texture2D load_texture2D(std::string filename);
+	Texture3D load_texture3D(std::string filename);
 	void save_texture3D(Texture3D *texture, std::string filename);
 	void save_texture2D(Texture2D *texture, std::string filename);
 	void capture_current_frame();

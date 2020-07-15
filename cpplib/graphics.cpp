@@ -562,6 +562,45 @@ Texture2D graphics::load_texture2D(std::string filename)
 	return texture;
 }
 
+Texture3D graphics::load_texture3D(std::string filename)
+{
+	std::wstringstream stream;
+	stream << filename.c_str();
+
+	DirectX::ScratchImage image;
+	DirectX::TexMetadata *metadata = NULL;
+	if (!SUCCEEDED(DirectX::LoadFromDDSFile(stream.str().c_str(), DirectX::DDS_FLAGS_NONE, metadata, image))) {
+		PRINT_DEBUG("Failed to load 3D texture.");
+
+		return Texture3D{};
+	}
+
+	ID3D11Resource *pResource = NULL;
+	if (!SUCCEEDED(DirectX::CreateTexture(graphics_context->device, image.GetImages(), image.GetImageCount(), image.GetMetadata(), &pResource))) {
+		PRINT_DEBUG("Failed to create 3D texture resource.");
+		return Texture3D{};
+	}
+
+	Texture3D texture;
+	texture.texture = (ID3D11Texture3D*)pResource;
+	texture.width = (uint32_t)image.GetMetadata().width;
+	texture.height = (uint32_t)image.GetMetadata().height;
+	texture.depth = (uint32_t)image.GetMetadata().depth;
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC shader_resource_desc = {};
+	shader_resource_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
+	shader_resource_desc.Format = image.GetMetadata().format;
+	shader_resource_desc.Texture3D.MipLevels = 1;
+	shader_resource_desc.Texture3D.MostDetailedMip = 0;
+
+	if (!SUCCEEDED(graphics_context->device->CreateShaderResourceView(texture.texture, &shader_resource_desc, &texture.sr_view))) {
+		PRINT_DEBUG("Failed to create shader resource view.");
+		return Texture3D{};
+	}
+
+	return texture;
+}
+
 void graphics::save_texture2D(Texture2D *texture, std::string filename)
 {
 	DirectX::ScratchImage image;
