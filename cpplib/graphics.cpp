@@ -575,17 +575,31 @@ Texture3D graphics::load_texture3D(std::string filename)
 		return Texture3D{};
 	}
 
-	ID3D11Resource *pResource = NULL;
-	if (!SUCCEEDED(DirectX::CreateTexture(graphics_context->device, image.GetImages(), image.GetImageCount(), image.GetMetadata(), &pResource))) {
-		PRINT_DEBUG("Failed to create 3D texture resource.");
+	Texture3D texture;
+
+	D3D11_TEXTURE3D_DESC texture_desc = {};
+	texture_desc.Width = (uint32_t)image.GetMetadata().width;
+	texture_desc.Height = (uint32_t)image.GetMetadata().height;
+	texture_desc.Depth = (uint32_t)image.GetMetadata().depth;
+	texture_desc.MipLevels = 1;
+	texture_desc.Format =  image.GetMetadata().format;
+	// TODO: Maybe not the best Usage flag.
+	texture_desc.Usage = D3D11_USAGE_DEFAULT;
+	texture_desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	
+
+	D3D11_SUBRESOURCE_DATA texture_data = {};
+	texture_data.pSysMem = image.GetImages()[0].pixels;
+	texture_data.SysMemPitch = (uint32_t)image.GetImages()[0].rowPitch;
+	texture_data.SysMemSlicePitch = (uint32_t)image.GetImages()[0].slicePitch;
+
+	D3D11_SUBRESOURCE_DATA *texture_data_ptr = &texture_data;
+	HRESULT hr = graphics_context->device->CreateTexture3D(&texture_desc, texture_data_ptr, &texture.texture);
+	if (FAILED(hr)) {
+		PRINT_DEBUG("Failed to create 3D texture.");
+		printf("Failed to create 3D texture. %x\n", hr);
 		return Texture3D{};
 	}
-
-	Texture3D texture;
-	texture.texture = (ID3D11Texture3D*)pResource;
-	texture.width = (uint32_t)image.GetMetadata().width;
-	texture.height = (uint32_t)image.GetMetadata().height;
-	texture.depth = (uint32_t)image.GetMetadata().depth;
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC shader_resource_desc = {};
 	shader_resource_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
@@ -593,11 +607,32 @@ Texture3D graphics::load_texture3D(std::string filename)
 	shader_resource_desc.Texture3D.MipLevels = 1;
 	shader_resource_desc.Texture3D.MostDetailedMip = 0;
 
-	if (!SUCCEEDED(graphics_context->device->CreateShaderResourceView(texture.texture, &shader_resource_desc, &texture.sr_view))) {
+	hr = graphics_context->device->CreateShaderResourceView(texture.texture, &shader_resource_desc, &texture.sr_view);
+	if (FAILED(hr)) {
 		PRINT_DEBUG("Failed to create shader resource view.");
+		printf("Failed to create shader resource view. \n");
 		return Texture3D{};
 	}
 
+	D3D11_UNORDERED_ACCESS_VIEW_DESC unordered_access_desc = {};
+	unordered_access_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
+	unordered_access_desc.Format = image.GetMetadata().format;
+	unordered_access_desc.Texture3D.MipSlice = 0;
+	unordered_access_desc.Texture3D.FirstWSlice = 0;
+	unordered_access_desc.Texture3D.WSize = (uint32_t)image.GetMetadata().depth;
+
+	hr = graphics_context->device->CreateUnorderedAccessView(texture.texture, &unordered_access_desc, &texture.ua_view);
+	if (FAILED(hr)) {
+		PRINT_DEBUG("Failed to create unordered access view.");
+		printf("Failed to create unordered access view. \n");
+		return Texture3D{};
+	}
+
+	texture.width = (uint32_t)image.GetMetadata().width;
+	texture.height = (uint32_t)image.GetMetadata().height;
+	texture.depth = (uint32_t)image.GetMetadata().depth;
+
+	printf("loaded texture \n");
 	return texture;
 }
 
