@@ -190,7 +190,8 @@ float get_rho(float3 rp) {
 
 float get_halo(float3 rp) {
     float halo = tex_deposit.SampleLevel(tex_deposit_sampler, rp / float3(grid_x, grid_y, grid_z), 0).r;
-    return 0.01 * galaxy_weight * halo;
+    // return 0.01 * galaxy_weight * halo;
+    return halo;
 }
 
 float3 get_halo_gradient(float3 rp, float dp) {
@@ -229,7 +230,21 @@ float delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_m
 		t += delta_step(sigma_max_inv, rng.random_float());
 		event_rho = get_rho(rp + t * rd);
 	} while (t <= t_max && rng.random_float() > event_rho * rho_max_inv);
+    // } while (t <= t_max && event_rho < 0.5);
 
+	return t;
+}
+
+float delta_tracking_surface(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
+	float sigma_max_inv = rho_max_inv / (sigma1_a_r + sigma1_s_r);    // this greater, steps greater
+    float t = t_min;
+    float event_rho = 0.0;
+	do {
+		t += delta_step(sigma_max_inv, rng.random_float());
+        event_rho = get_rho(rp + t * rd);
+        //if (event_rho > 0.5) break;
+	} while (t <= t_max && rng.random_float() > event_rho * rho_max_inv);
+    //} while (t <= t_max);
 	return t;
 }
 
@@ -312,10 +327,11 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         // Sample collision distance
         float2 t = ray_AABB_intersection(rp, rd, c_low, c_high);
-        float t_event = delta_tracking(rp, rd, 0.0, t.y, rho_max_inv, rng);
+        float t_event = delta_tracking_surface(rp, rd, 0.0, t.y, rho_max_inv, rng);
         if (t_event >= t.y)
-            //return float3(1.0, 0.0, 0.0); // to see if it ever goes out-bound
             return L + throughput_rgb * get_sky_L(rd);
+        //else return float3(1.0, 1.0, 0.0);
+
         rp += t_event * rd;
         float rho_event = get_rho(rp);
 
