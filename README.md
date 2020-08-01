@@ -71,6 +71,12 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
   <img src="docs/trim_combined.png" width="22%" height="22%">
 </p>
 
+- **Path tracing** is an experimental feature. This mode uses a progressive implementation of volumetric Monte Carlo path tracing to compute physically plausible global illumination in the reconstructed data. Multiple custom coloring schemes are being developed. <p>
+  <img src="docs/pt_cool_blue.png" width="35%" height="35%">
+  <img src="docs/pt_aniso_red.png" width="32%" height="32%">
+  <img src="docs/pt_pointlight.png" width="29.5%" height="29.5%">
+</p>
+
 ## Publications
 *Polyphorm* has been instrumental in the following scientific results.
 
