@@ -74,15 +74,15 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
 ## Publications
 *Polyphorm* has been instrumental in the following scientific results.
 
-- [Revealing the Dark Threads of the Cosmic Web](https://cgg.mff.cuni.cz/~oskar/research.html#BurchettElek2020) (Astrophysical Journal Letters, March 2020)
-  <img src="docs/uc1_mapping.png" width="40%" height="40%">
-  <img src="docs/uc2_regions.png" width="39%" height="39%"><br/>
+- [Revealing the Dark Threads of the Cosmic Web](https://cgg.mff.cuni.cz/~oskar/research.html#BurchettElek2020) (Astrophysical Journal Letters, March 2020)<br/>
+  <img src="docs/uc1_mapping.png" width="45%" height="45%">
+  <img src="docs/uc2_regions.png" width="44%" height="44%"><br/>
   The initial application of *Polyphorm* had aimed to establish a complete, calibrated map of the dark matter density field (traced by the locations of galaxies) in a sufficiently representative region of space wherein we could study the study the distribution of intergalactic gas (the intergalactic medium, or IGM) relative to the dark matter structures, or Cosmic Web. The **left figure** shows the resulting mapping from MCPM trace density (X axis) to the cosmic overdensity (Y axis).<br/>
   Thanks to the above mapping, it now becomes possible to analyze astrophysical observables in context with the large scale structure. The **right figure** shows the strength of the H I Ly-&alpha; absorption signature (black curve) as a function of the local MCPM density field (bottom axis) and calibrated cosmic matter overdensity (top axis). The horizontal dotted line marks the baseline 'zero' absorption and the horizontal dashed line marks the mean cosmic matter density <&rho;<sub>m</sub>. Color-coded and labeled are three regimes of the Cosmic Web where the H I absorption strength exhibits distinct behaviors with respect to the density field. Attributing these regimes to 'void', 'filaments', and 'shocks/feedback' regions of the Cosmic Web was directly enabled by the *Polyphorm* visualization.
   
-- [Disentangling the Cosmic Web Towards FRB 190608](https://arxiv.org/abs/2005.13157v1) (ArXiv, May 2020; under submission to Astrophysical Journal Letters)
-  <img src="docs/uc3_galaxies.png" width="40%" height="40%">
-  <img src="docs/uc3_absorption.png" width="38%" height="38%"><br/>
+- [Disentangling the Cosmic Web Towards FRB 190608](https://arxiv.org/abs/2005.13157v1) (ArXiv, May 2020; submitted to Astrophysical Journal Letters)<br/>
+  <img src="docs/uc3_galaxies.png" width="45%" height="45%">
+  <img src="docs/uc3_absorption.png" width="43%" height="43%"><br/>
   Polyphorm was used to investigate the filamentary structure of the Cosmic Web in a region along a Fast Radio Burst (FRB) sightline, for which observed data indicate an unusually large dispersion measure compared to the cosmic average at its redshift, as well as an unusually large rotation measure and pulse width. Producing a 3D map of ionized gas in cosmic web filaments, astronomers were able to compute a dispersion measure contribution from matter outside halos, leading to the first detailed end-to-end study of matter along an FRB sightline.<br/>
   The **left figure** shows the spatial distribution of the observed galaxies along the sightlint towards FRB 190608 as a function of cosmic redshift (z), plotted as histogram (top) and scatterplot additionally parametrized by the galaxies' impact parameters (bottom). The red dashed line indicates the FRB host redshift. The spikes in the galaxies' distribution indicate overdensitites in the underlying cosmic web structure. The subsequent analysis using an MCPM reconstruction provided by *Polyphorm* in the **right figure** was able to attribute the unusually strong absorption profile (blue line) to the increased cosmic web density, compared to the mean expected profile (red line).
   
