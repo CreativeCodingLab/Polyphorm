@@ -49,19 +49,19 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
 *Polyphorm* supports multiple visualization modalities to facilitate the analysis of the reconstructed Cosmic web estimate.
 
 - **Particle mode** directly renders the input data (red) and MCPM agents (white) as discrete points. While the data points are static, the agents flow dynamically through space.<p>
-  <img src="docs/mode_particles.png" width="90%" height="90%">
+  <img src="docs/mode_particles.png" width="80%" height="80%">
 </p>
 
 - **Trace mode** uses direct volume rendering to visualize the spatio-temporal agent density field. The density is mapped to a configurable color palette and rendered using the emission-absorption volumetric medium model. <p>
-  <img src="docs/mode_trace.png" width="90%" height="90%">
+  <img src="docs/mode_trace.png" width="80%" height="80%">
 </p>
 
 - **Overdensity mode** segments the trace field into three configurable intervals (low/medium/high density) and renders each with a different color (blue/green/red) to better understand the spatial distribution of the agents. <p>
-  <img src="docs/mode_segmentation.png" width="90%" height="90%">
+  <img src="docs/mode_segmentation.png" width="80%" height="80%">
 </p>
 
 - **Highlights mode** renders the trace (purple) superimposed on the deposit - the volumetric 'footprint' of the input data (bright yellow). This modality additionally supports the highlighting of a selected density band. <p>
-  <img src="docs/mode_combined.png" width="90%" height="90%">
+  <img src="docs/mode_combined.png" width="80%" height="80%">
 </p>
 
 - **Trimming function** allows axis aligned slicing of the 3D space to allow for more detailed/uncluttered inspection. This works for every visualization modality. <p>
@@ -71,19 +71,25 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
   <img src="docs/trim_combined.png" width="22%" height="22%">
 </p>
 
-## People
-*Polyphorm* would not happen without the following humans on the team:
-- [Oskar Elek](https://cgg.mff.cuni.cz/~oskar) - corresponding author, simulation and visualization
-- [Joe Burchett](http://www.joeburchett.com/) - astronomical expertise and data
-- [Angus Forbes](https://creativecoding.soe.ucsc.edu/angus/) - funding and guidance
-- [Jan Ivanecky](http://janivanecky.com/) - initial prototype and technical support
-
-As well as one protista:
-- [Physarum polycephalum](https://en.wikipedia.org/wiki/Physarum_polycephalum) - spatial navigation and foraging
-
-Many thanks also belong to other humans: Sage Jenson (for a major inception), Jeff Jones (for writing that great paper), J. Xavier Prochaska (for trust and support), Daisuke Nagai (for ideas and insights), Sebastian Herholz (for all the Monte Carlo lore), Jaroslav Křivánek (for an awesome ride).
-
 ## Publications
 *Polyphorm* has been instrumental in the following scientific results.
+- [Polyphorm: Structural Analysis of Cosmological Datasets via Interactive Physarum Polycephalum Visualization]() (conditionally accepted to IEEE Vis 2020)
 - [Revealing the Dark Threads of the Cosmic Web](https://cgg.mff.cuni.cz/~oskar/research.html#BurchettElek2020) (Astrophysical Journal Letters, March 2020)
-- [Disentangling the Cosmic Web Towards FRB 190608](https://arxiv.org/abs/2005.13157v1) (ArXiv, May 2020)
+  <img src="docs/uc1_mapping.png" width="40%" height="40%">
+  <img src="docs/uc2_regions.png" width="40%" height="40%">
+- [Disentangling the Cosmic Web Towards FRB 190608](https://arxiv.org/abs/2005.13157v1) (ArXiv, May 2020; under submission to Astrophysical Journal Letters)
+  <img src="docs/uc3_galaxies.png" width="40%" height="40%">
+  <img src="docs/uc3_absorption.png" width="40%" height="40%">
+
+## People
+*Polyphorm* would not happen without the following humans on the team:
+- [Oskar Elek](https://cgg.mff.cuni.cz/~oskar) - primary author, computational media researcher at Creative Coding lab, UC Santa Cruz
+- [Joseph N. Burchett](http://www.joeburchett.com/) - astronomer at UC Santa Cruz, expert in galactic ecosystems
+- [Angus G. Forbes](https://creativecoding.soe.ucsc.edu/angus/) - director of Creative Coding lab, UC Santa Cruz
+- [J. Xavier Prochaska](http://www.ucolick.org/~xavier/) - professor of Astronomy & Astrophysics, UC Santa Cruz
+- [Jan Ivanecky](http://janivanecky.com/) - developed an initial prototype and provided relentless technical support
+
+As well as one (simulated) protista:
+- [Physarum polycephalum](https://en.wikipedia.org/wiki/Physarum_polycephalum) - taught us spatial navigation and foraging
+
+Many thanks also belong to other humans: Sage Jenson (for a major inception), Jeff Jones (for writing that great paper), Daisuke Nagai (for ideas and insights), Sebastian Herholz (for all the Monte Carlo lore), Jaroslav Křivánek (for an awesome ride).
