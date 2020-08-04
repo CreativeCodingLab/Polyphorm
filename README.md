@@ -65,10 +65,10 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
 </p>
 
 - **Trimming function** allows axis aligned slicing of the 3D space to allow for more detailed/uncluttered inspection. This works for every visualization modality. <p>
-  <img src="docs/trim_particles.png" width="22%" height="22%">
-  <img src="docs/trim_trace.png" width="22%" height="22%">
-  <img src="docs/trim_segmentation.png" width="22%" height="22%">
-  <img src="docs/trim_combined.png" width="22%" height="22%">
+  <img src="docs/trim_particles.png" width="24%" height="24%">
+  <img src="docs/trim_trace.png" width="24%" height="24%">
+  <img src="docs/trim_segmentation.png" width="24%" height="24%">
+  <img src="docs/trim_combined.png" width="24%" height="24%">
 </p>
 
 - **Path tracing** is an experimental feature. This mode uses a progressive implementation of volumetric Monte Carlo path tracing to compute physically plausible global illumination in the reconstructed data. Multiple custom coloring schemes are being developed. <p>
