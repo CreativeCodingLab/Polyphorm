@@ -242,11 +242,13 @@ float delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_m
 	return t;
 }
 
-float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
+float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng, inout bool in_volume) {
 	float sigma_max_inv = rho_max_inv / (sigma1_a_r + sigma1_s_r);    // this greater, steps greater
     float t = t_min;
     float event_rho = 0.0;
     float grad = 0.0;
+
+    bool still_wall = true;
 
     if (t_min >= t_max) return t;   // t_min > t_max is not supposed to happen
 	do {
@@ -255,17 +257,25 @@ float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, f
         event_rho = get_rho(rp + t * rd);
         // grad = get_rho_gradient(rp,1.0);
         // if (length(grad) > 0.001) return t;
-        if (event_rho > 0.5 && event_rho < 0.6) break;
+        if (event_rho > 0.4 && event_rho < 0.5) {
+            if (!still_wall) {
+                in_volume = false;
+                break;
+            }
+        }
+        else still_wall = false;
 	} while (t <= t_max && rng.random_float() > event_rho * rho_max_inv);
 
 	return t;
 }
 
-float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
+float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng, inout bool in_volume) {
 	float sigma_max_inv = rho_max_inv / (sigma1_a_r + sigma1_s_r);    // this greater, steps greater
     float t = t_min;
     float event_rho = 0.0;
     float grad = 0.0;
+
+    bool still_wall = true;
 
     if (t_min >= t_max) return t;   // t_min > t_max is not supposed to happen
 	do {
@@ -274,8 +284,13 @@ float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, 
         event_rho = get_rho(rp + t * rd);
         // grad = get_rho_gradient(rp,1.0);
         // if (length(grad) > 0.001) return t;
-        if (event_rho > 0.5 && event_rho < 0.6) break;
-	//} while (t <= t_max && rng.random_float() > event_rho * rho_max_inv);
+        if (event_rho > 0.4 && event_rho < 0.5) {
+            if (!still_wall) {
+                in_volume = true;
+                break;
+            }
+        }
+        else still_wall = false;
     } while (t <= t_max);
 	return t;
 }
@@ -355,15 +370,24 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     float3 lp = c_low + l_rel_pos * c_high;
     #endif
 
+    bool in_volume = false;
+
     for (int n = 0; n < nBounces; ++n) {
 
         // Sample collision distance
         float2 t = ray_AABB_intersection(rp, rd, c_low, c_high);
-        if (t.x == -1 && t.y == -1) return float3(0,0,0); // ray_AABB_intersection failed
+        // if (t.x == -1 && t.y == -1) return float3(0,0,0); // ray_AABB_intersection failed
 
-        float t_event = delta_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng);
-        if (t_event >= t.y)
-            return L + throughput_rgb * get_sky_L(rd);
+        float t_event;
+        
+        if (in_volume) t_event = delta_tracking_in_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, in_volume);
+        else t_event = delta_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, in_volume);
+
+
+        if (t_event >= t.y) {
+            if (n == 0) return float3(0,0,0);
+            else return L + throughput_rgb * get_sky_L(rd);
+        }
 
         rp += t_event * rd;
         float rho_event = get_rho(rp);
@@ -516,7 +540,8 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             path_L = get_incident_L(rp, rd, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces + 1, rng);
         }
     } else {
-        path_L = get_sky_L(rd);
+        // path_L = get_sky_L(rd);
+        path_L = float3(0,0,0);
     }
 
     // Accumulate LDR or HDR values?
