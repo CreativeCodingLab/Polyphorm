@@ -41,9 +41,9 @@ Most of *Polyphorm*'s controls are a part of the UI, including changing the visu
 - F9/F10: save/load current visualization state (camera + visual settings)
 
 ### Simulation
+<img src="docs/energy.png" align="right">
 Immediately upon launching, *Polyphorm* starts fitting to the input data. The state of the fitting is captured in the red energy plot: the higher the energy value, the more are the simulation agents aligned with the input data. The spatio-temporal agent density is captured in the green histogram: healthy fits typically have a bell-shaped log-density distribution with a slight positive skew.
 
-![energy.png](docs/energy.png)
 
 ### Visualization
 *Polyphorm* supports multiple visualization modalities to facilitate the analysis of the reconstructed Cosmic web estimate.
