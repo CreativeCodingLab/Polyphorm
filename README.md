@@ -71,6 +71,11 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
   <img src="docs/trim_combined.png" width="24%" height="24%">
 </p>
 
+- **Proxy objects**, such as sightlines and spherical shells, can be manually placed in the volumetric modalities to serve as visual aides. Computationally, these are handled as implicit surfaces or volumes evaluated directly in the corresponding shader. <p>
+  <img src="docs/proxy_sightline.png" width="55%" height="55%">
+  <img src="docs/proxy_shells.png" width="42%" height="42%">
+</p>
+
 - **Path tracing** is an experimental feature. This mode uses a progressive implementation of volumetric Monte Carlo path tracing to compute physically plausible global illumination in the reconstructed data. Multiple custom coloring schemes are being developed. <p>
   <img src="docs/pt_cool_blue.png" width="35%" height="35%">
   <img src="docs/pt_aniso_red.png" width="32%" height="32%">
