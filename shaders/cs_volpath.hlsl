@@ -188,6 +188,14 @@ float get_rho(float3 rp) {
     return trace_to_rho(trace);
 }
 
+float3 get_rho_gradient(float3 rp, float dp) {
+    float3 gradient;
+    gradient.x = get_rho(rp + float3(dp, 0.0, 0.0)) - get_rho(rp - float3(dp, 0.0, 0.0));
+    gradient.y = get_rho(rp + float3(0.0, dp, 0.0)) - get_rho(rp - float3(0.0, dp, 0.0));
+    gradient.z = get_rho(rp + float3(0.0, 0.0, dp)) - get_rho(rp - float3(0.0, 0.0, dp));
+    return gradient / dp;
+}
+
 float get_halo(float3 rp) {
     float halo = tex_deposit.SampleLevel(tex_deposit_sampler, rp / float3(grid_x, grid_y, grid_z), 0).r;
     // return 0.01 * galaxy_weight * halo;
@@ -230,21 +238,45 @@ float delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_m
 		t += delta_step(sigma_max_inv, rng.random_float());
 		event_rho = get_rho(rp + t * rd);
 	} while (t <= t_max && rng.random_float() > event_rho * rho_max_inv);
-    // } while (t <= t_max && event_rho < 0.5);
 
 	return t;
 }
 
-float delta_tracking_surface(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
+float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
 	float sigma_max_inv = rho_max_inv / (sigma1_a_r + sigma1_s_r);    // this greater, steps greater
     float t = t_min;
     float event_rho = 0.0;
+    float grad = 0.0;
+
+    if (t_min >= t_max) return t;   // t_min > t_max is not supposed to happen
 	do {
 		t += delta_step(sigma_max_inv, rng.random_float());
+
         event_rho = get_rho(rp + t * rd);
-        //if (event_rho > 0.5) break;
+        // grad = get_rho_gradient(rp,1.0);
+        // if (length(grad) > 0.001) return t;
+        if (event_rho > 0.5 && event_rho < 0.6) break;
 	} while (t <= t_max && rng.random_float() > event_rho * rho_max_inv);
-    //} while (t <= t_max);
+
+	return t;
+}
+
+float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
+	float sigma_max_inv = rho_max_inv / (sigma1_a_r + sigma1_s_r);    // this greater, steps greater
+    float t = t_min;
+    float event_rho = 0.0;
+    float grad = 0.0;
+
+    if (t_min >= t_max) return t;   // t_min > t_max is not supposed to happen
+	do {
+		t += delta_step(sigma_max_inv, rng.random_float());
+
+        event_rho = get_rho(rp + t * rd);
+        // grad = get_rho_gradient(rp,1.0);
+        // if (length(grad) > 0.001) return t;
+        if (event_rho > 0.5 && event_rho < 0.6) break;
+	//} while (t <= t_max && rng.random_float() > event_rho * rho_max_inv);
+    } while (t <= t_max);
 	return t;
 }
 
@@ -327,10 +359,11 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         // Sample collision distance
         float2 t = ray_AABB_intersection(rp, rd, c_low, c_high);
-        float t_event = delta_tracking_surface(rp, rd, 0.0, t.y, rho_max_inv, rng);
+        if (t.x == -1 && t.y == -1) return float3(0,0,0); // ray_AABB_intersection failed
+
+        float t_event = delta_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng);
         if (t_event >= t.y)
             return L + throughput_rgb * get_sky_L(rd);
-        //else return float3(1.0, 1.0, 0.0);
 
         rp += t_event * rd;
         float rho_event = get_rho(rp);
