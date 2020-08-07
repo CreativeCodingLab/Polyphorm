@@ -44,7 +44,6 @@ Most of *Polyphorm*'s controls are a part of the UI, including changing the visu
 <img src="docs/energy.png" align="right">
 Immediately upon launching, *Polyphorm* starts fitting to the input data. The state of the fitting is captured in the red energy plot: the higher the energy value, the more are the simulation agents aligned with the input data. The spatio-temporal agent density is captured in the green histogram: healthy fits typically have a bell-shaped log-density distribution with a slight positive skew.
 
-
 ### Visualization
 *Polyphorm* supports multiple visualization modalities to facilitate the analysis of the reconstructed Cosmic web estimate.
 
@@ -97,7 +96,7 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
   Polyphorm was used to investigate the filamentary structure of the Cosmic Web in a region along a Fast Radio Burst (FRB) sightline, for which observed data indicate an unusually large dispersion measure compared to the cosmic average at its redshift, as well as an unusually large rotation measure and pulse width. Producing a 3D map of ionized gas in cosmic web filaments, astronomers were able to compute a dispersion measure contribution from matter outside halos, leading to the first detailed end-to-end study of matter along an FRB sightline.<br/>
   The **left figure** shows the spatial distribution of the observed galaxies along the sightlint towards FRB 190608 as a function of cosmic redshift (z), plotted as histogram (top) and scatterplot additionally parametrized by the galaxies' impact parameters (bottom). The red dashed line indicates the FRB host redshift. The spikes in the galaxies' distribution indicate overdensitites in the underlying cosmic web structure. The subsequent analysis using an MCPM reconstruction provided by *Polyphorm* in the **right figure** was able to attribute the unusually strong absorption profile (blue line) to the increased cosmic web density, compared to the mean expected profile (red line).
   
-- [Polyphorm: Structural Analysis of Cosmological Datasets via Interactive Physarum Polycephalum Visualization]() (conditionally accepted to IEEE Vis 2020)
+- [Polyphorm: Structural Analysis of Cosmological Datasets via Interactive Physarum Polycephalum Visualization](https://github.com/CreativeCodingLab/Polyphorm) (conditionally accepted to IEEE Vis 2020)
 
 ## People
 *Polyphorm* would not happen without the following humans on the team:
