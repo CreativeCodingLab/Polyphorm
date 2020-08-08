@@ -669,7 +669,7 @@ int main(int argc, char **argv)
     rendering_config.camera_offset_x = 0.0;
     rendering_config.camera_offset_y = 0.0;
     rendering_config.exposure = 1.0;
-    rendering_config.n_bounces = 10;
+    rendering_config.n_bounces = 20;
     rendering_config.ambient_trace = 0.0;
     rendering_config.compressive_accumulation = 1;
     rendering_config.guiding_strength = 0.1;

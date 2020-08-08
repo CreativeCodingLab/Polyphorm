@@ -242,7 +242,7 @@ float delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_m
 	return t;
 }
 
-float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng, inout bool in_volume) {
+float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng, inout bool hit_surface) {
 	float sigma_max_inv = rho_max_inv / (sigma1_a_r + sigma1_s_r);    // this greater, steps greater
     float t = t_min;
     float event_rho = 0.0;
@@ -259,7 +259,7 @@ float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, f
         // if (length(grad) > 0.001) return t;
         if (event_rho > 0.4 && event_rho < 0.5) {
             if (!still_wall) {
-                in_volume = false;
+                hit_surface = true;
                 break;
             }
         }
@@ -269,7 +269,7 @@ float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, f
 	return t;
 }
 
-float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng, inout bool in_volume) {
+float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng, inout bool hit_surface) {
 	float sigma_max_inv = rho_max_inv / (sigma1_a_r + sigma1_s_r);    // this greater, steps greater
     float t = t_min;
     float event_rho = 0.0;
@@ -286,7 +286,7 @@ float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, 
         // if (length(grad) > 0.001) return t;
         if (event_rho > 0.4 && event_rho < 0.5) {
             if (!still_wall) {
-                in_volume = true;
+                hit_surface = true;
                 break;
             }
         }
@@ -343,6 +343,13 @@ float pdf_HG(float g, float cos_angle) {
     return (1.0 - g*g) / (denominator_cubicrt * denominator_cubicrt * denominator_cubicrt);
 }
 
+float3 reflect(float3 rp, float3 rd) {
+    float3 n = -get_rho_gradient(rp, 1.0);
+
+    return rd - 2 * dot(rd, n) * n;
+
+}
+
 float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBounces, inout RNG rng) {
     float3 L = float3(0.0, 0.0, 0.0);
     float throughput = 1.0;
@@ -379,45 +386,25 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         // if (t.x == -1 && t.y == -1) return float3(0,0,0); // ray_AABB_intersection failed
 
         float t_event;
+
+        bool hit_surface;
         
-        if (in_volume) t_event = delta_tracking_in_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, in_volume);
-        else t_event = delta_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, in_volume);
+        if (in_volume) {
+            t_event = delta_tracking_in_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
+            if (hit_surface) in_volume = false;
+        }
+        else {
+            t_event = delta_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
+        }
 
-
+        // If the ray gets out of AABB, return color
         if (t_event >= t.y) {
             if (n == 0) return float3(0,0,0);
             else return L + throughput_rgb * get_sky_L(rd);
         }
 
+        // Move to the next intersection
         rp += t_event * rd;
-        float rho_event = get_rho(rp);
-
-        // Get emitted light
-        float3 emission = float3(0.0, 0.0, 0.0);
-
-        #ifdef TRACE_ILLUMINATION
-        emission += get_emitted_trace_L(rho_event);
-        #endif
-
-        #ifdef HALO_ILLUMINATION
-        float halo_event = get_halo(rp);
-        emission += get_emitted_data_L(halo_event);
-        #endif
-
-        #ifdef POINT_ILLUMINATION
-        float3 ld = lp - rp;
-        float l_distance = length(ld);
-        ld = normalize(ld);
-        // Inefficient but unbiased binary visibility estimator
-        // float t_occlusion = delta_tracking(rp, ld, 0.0, l_distance, rho_max_inv, rng);
-        // if (t_occlusion > l_distance)
-        //     emission += 100.0 * galaxy_weight /  max(l_distance * l_distance, 1.0);
-        // Modified delta-tracking transmittance estimator
-        float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
-        emission += 100.0 * galaxy_weight * transmittance / max(l_distance * l_distance, 1.0);
-        #endif
-
-        L += throughput_rgb * rho_event * sigma_e * emission;
 
         // Adjust the path throughput (RR or modulate)
         #ifdef RUSSIAN_ROULETTE
@@ -429,22 +416,20 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         throughput_rgb *= albedo_rgb;
         #endif
 
-        // Sample new direction and continue the walk
-        #ifdef GRADIENT_GUIDING
-        float3 grad = get_halo_gradient(rp, 1.0);
-        if (guiding_strength > INTENSITY_EPSILON && any(abs(grad) > float3(INTENSITY_EPSILON, INTENSITY_EPSILON, INTENSITY_EPSILON))) { 
-            float g = min(guiding_strength * length(grad), scattering_anisotropy);
-            float3 grad_norm = normalize(grad);
-            float3 rd_new = sample_HG(grad_norm, g, rng);
-            float pdf = pdf_HG(g, dot(grad_norm, rd_new));
-            throughput /= pdf;
-            rd = rd_new;
-        } else {
-            rd = uniform_unit_sphere(rng);
+        if (!in_volume && hit_surface) {
+
+            // 50/50 chance of reflect/refract
+            if (rng.random_float() > 0.8) {
+                rd = reflect(rp, rd);
+            }
+            else {
+                in_volume = true;
+            }
         }
-        #else
-        rd = sample_HG(rd, scattering_anisotropy, rng);
-        #endif
+        else {
+             rd = sample_HG(rd, scattering_anisotropy, rng);
+        }
+
     }
     return L;
 }
