@@ -78,6 +78,7 @@ cbuffer ConfigBuffer : register(b4)
     float sigma1_a_r;
     float sigma1_a_g;
     float sigma1_a_b;
+    float slime_ior;
 
 };
 
@@ -231,7 +232,7 @@ float delta_step(float sigma_max_inv, float xi) {
 }
 
 float delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng) {
-	float sigma_max_inv = rho_max_inv / (sigma1_a_r + sigma1_s_r);    // this greater, steps greater
+	float sigma_max_inv = rho_max_inv / ((sigma1_a_r + sigma1_s_r + sigma1_a_g + sigma1_s_g + sigma1_a_b + sigma1_s_b) / 3);    // this greater, steps greater
     float t = t_min;
     float event_rho = 0.0;
 	do {
@@ -243,7 +244,7 @@ float delta_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_m
 }
 
 float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng, inout bool hit_surface) {
-	float sigma_max_inv = rho_max_inv / (sigma1_a_r + sigma1_s_r);    // this greater, steps greater
+	float sigma_max_inv = rho_max_inv / ((sigma1_a_r + sigma1_s_r + sigma1_a_g + sigma1_s_g + sigma1_a_b + sigma1_s_b) / 3);    // this greater, steps greater
     float t = t_min;
     float event_rho = 0.0;
     float grad = 0.0;
@@ -350,6 +351,35 @@ float3 reflect(float3 rp, float3 rd) {
 
 }
 
+// return kr: amount of reflected light. thus 1-kr is refracted light
+float fresnel(float3 rp, float3 rd) {
+    float3 n = -get_rho_gradient(rp, 1.0);
+
+    float cosi = clamp(dot(rd, n), -1, 1);
+    float etai = 1;
+    float etat = slime_ior;
+
+    if (cosi > 0) {
+        float tmp = etai;
+        etai = etat;
+        etat = tmp;
+    }
+
+    float sint = etai / etat * sqrt(max(0, 1 - cosi * cosi));
+
+    // Total internal reflection
+    if (sint >= 1) {
+        return 1;
+    }
+    else {
+        float cost = sqrt(max(0, 1 - sint * sint));
+        cosi = abs(cosi);
+        float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+        float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+        return (Rs * Rs + Rp * Rp) / 2;
+    }
+}
+
 float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBounces, inout RNG rng) {
     float3 L = float3(0.0, 0.0, 0.0);
     float throughput = 1.0;
@@ -418,8 +448,10 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         if (!in_volume && hit_surface) {
 
-            // 50/50 chance of reflect/refract
-            if (rng.random_float() > 0.8) {
+            float reflect_chance = fresnel(rp, rd);
+
+            // reflect
+            if (rng.random_float() < reflect_chance) {
                 rd = reflect(rp, rd);
             }
             else {

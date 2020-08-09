@@ -230,7 +230,7 @@ struct RenderingConfig {
 
     float sigma1_a_g;
     float sigma1_a_b;
-    int tmp1;
+    float slime_ior;
     int tmp2;
 
 };
@@ -682,6 +682,7 @@ int main(int argc, char **argv)
     rendering_config.sigma1_a_r = 0.1;
     rendering_config.sigma1_a_g = 0.1;
     rendering_config.sigma1_a_b = 0.9;
+    rendering_config.slime_ior = 1.45;
 
     ConstantBuffer rendering_settings_buffer = graphics::get_constant_buffer(sizeof(RenderingConfig));
     graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
