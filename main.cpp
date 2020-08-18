@@ -437,7 +437,7 @@ int main(int argc, char **argv)
     printf("cs_agents_propagate shader compiled...\n");
 
     // Decay/diffusion shader
-    File decay_compute_shader_file = file_system::read_file("cs_field_decay.hlsl");
+    File decay_compute_shader_file = file_system::read_file("cs_field_decay_custome.hlsl");
     ComputeShader decay_compute_shader = graphics::get_compute_shader_from_code((char *)decay_compute_shader_file.data, decay_compute_shader_file.size);
     file_system::release_file(decay_compute_shader_file);
     assert(graphics::is_ready(&decay_compute_shader));
@@ -676,11 +676,11 @@ int main(int argc, char **argv)
     rendering_config.scattering_anisotropy = 0.9;
 
 
-    rendering_config.sigma1_s_r = 0.5;
-    rendering_config.sigma1_s_g = 0.5;
-    rendering_config.sigma1_s_b = 0.5;
+    rendering_config.sigma1_s_r = 0.8;
+    rendering_config.sigma1_s_g = 0.8;
+    rendering_config.sigma1_s_b = 0.8;
     rendering_config.sigma1_a_r = 0.1;
-    rendering_config.sigma1_a_g = 0.1;
+    rendering_config.sigma1_a_g = 0.12;
     rendering_config.sigma1_a_b = 0.9;
     rendering_config.slime_ior = 1.45;
 
@@ -732,7 +732,7 @@ int main(int argc, char **argv)
     bool is_running = true;
     bool is_a = true;
     bool show_ui = true;
-    bool run_mold = true;
+    bool run_mold = false;
     bool turning_camera = false;
     bool render_dof = true;
     bool store_deposit = false;
