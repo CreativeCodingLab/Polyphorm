@@ -14,6 +14,7 @@
 
 // Illumination types
 #define WHITESKY_ILLUMINATION
+#define POINT_LIGHT
 // #define POINT_ILLUMINATION
 // #define HALO_ILLUMINATION
 // #define TRACE_ILLUMINATION
@@ -400,11 +401,12 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
                                sigma1_s_g / (sigma1_a_g + sigma1_s_g),
                                sigma1_s_b / (sigma1_a_b + sigma1_s_b));
 
-    #ifdef POINT_ILLUMINATION
+    #ifdef POINT_LIGHT
     float3 trim_min = float3(trim_x_min, trim_y_min, trim_z_min);
     float3 trim_max = float3(trim_x_max, trim_y_max, trim_z_max);
     float3 l_rel_pos = 0.5 * (trim_min + trim_max);
-    float3 lp = c_low + l_rel_pos * c_high;
+    // float3 lp = c_low + l_rel_pos * c_high;
+    float3 lp = c_low + float3(-2.0 * c_high.x, c_high.y / 2.0, c_high.z / 2.0);
     #endif
 
     bool in_volume = false;
@@ -451,15 +453,42 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
             float reflect_chance = fresnel(rp, rd);
 
             // reflect
-            if (rng.random_float() < reflect_chance) {
+            if (rng.random_float() < 0.5) {
+
+                // Calculate Light Contribution
+                #ifdef POINT_LIGHT
+                float3 ld = lp - rp;
+                float l_distance = length(ld);
+                ld = normalize(ld);
+                float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
+                //float light_contribution = 100.0 * transmittance / max(l_distance * l_distance, 1.0);
+
+                float intensity = 1.0f;
+                int light_exposure = 3;
+
+                float light_reflect = reflect(rp, rd);
+
+                float specular_factor = dot(normalize(ld), normalize(light_reflect));
+
+                if(specular_factor < 0) {
+                    return float3(0,0,0);
+                }
+
+                specular_factor = pow(specular_factor, 64);
+                float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
+
+                return throughput_rgb * specular_color;
+                #endif
+                
                 rd = reflect(rp, rd);
+                in_volume = true;
             }
             else {
                 in_volume = true;
             }
         }
         else {
-             rd = sample_HG(rd, scattering_anisotropy, rng);
+            rd = sample_HG(rd, scattering_anisotropy, rng);
         }
 
     }
@@ -557,8 +586,8 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             path_L = get_incident_L(rp, rd, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces + 1, rng);
         }
     } else {
-        // path_L = get_sky_L(rd);
-        path_L = float3(0,0,0);
+        path_L = get_sky_L(rd);
+        //path_L = float3(0,0,0);
     }
 
     // Accumulate LDR or HDR values?
