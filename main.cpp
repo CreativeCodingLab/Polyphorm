@@ -233,6 +233,11 @@ struct RenderingConfig {
     float slime_ior;
     int tmp2;
 
+    float sigma_t_rgb;
+    float albedo_r;
+    float albedo_g;
+    float albedo_b;
+
 };
 
 struct StatisticsConfig {
@@ -480,12 +485,12 @@ int main(int argc, char **argv)
     // Textures for the simulation
     // Texture3D trail_tex_A = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
     // Texture3D trail_tex_B = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
-    Texture3D trail_tex_A = graphics::load_texture3D("export/deposit.dds");
-    Texture3D trail_tex_B = graphics::load_texture3D("export/deposit.dds");
+    Texture3D trail_tex_A = graphics::load_texture3D("export_1/deposit.dds");
+    Texture3D trail_tex_B = graphics::load_texture3D("export_1/deposit.dds");
     #ifdef VELOCITY_ANALYSIS
     Texture3D trace_tex = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16G16B16A16_FLOAT, 8);
     #else
-    Texture3D trace_tex = graphics::load_texture3D("export/trace.dds");
+    Texture3D trace_tex = graphics::load_texture3D("export_1/trace.dds");
     // Texture3D trace_tex = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
     #endif
     Texture2D display_tex = graphics::get_texture2D(NULL, window_width, window_height, DXGI_FORMAT_R32G32B32A32_FLOAT, 16);
@@ -664,25 +669,39 @@ int main(int argc, char **argv)
     rendering_config.pt_iteration = 0;
     rendering_config.sigma_s = 0.0;
     rendering_config.sigma_a = 0.5;
-    rendering_config.sigma_e = 10.0;
+    rendering_config.sigma_e = 1.0;
     rendering_config.trace_max = 100.0;
     rendering_config.camera_offset_x = 0.0;
     rendering_config.camera_offset_y = 0.0;
     rendering_config.exposure = 1.0;
-    rendering_config.n_bounces = 20;
+    rendering_config.n_bounces = 30;
     rendering_config.ambient_trace = 0.0;
-    rendering_config.compressive_accumulation = 1;
+    rendering_config.compressive_accumulation = 0;
     rendering_config.guiding_strength = 0.1;
     rendering_config.scattering_anisotropy = 0.9;
 
-
-    rendering_config.sigma1_s_r = 0.8;
-    rendering_config.sigma1_s_g = 0.8;
-    rendering_config.sigma1_s_b = 0.8;
-    rendering_config.sigma1_a_r = 0.1;
-    rendering_config.sigma1_a_g = 0.12;
-    rendering_config.sigma1_a_b = 0.9;
     rendering_config.slime_ior = 1.45;
+
+    // Compute sigma_a and sigma_s for each of RGB
+    rendering_config.sigma_t_rgb = 0.9;
+    rendering_config.albedo_r = 0.95;
+    rendering_config.albedo_g = 0.90;
+    rendering_config.albedo_b = 0.05;
+
+    rendering_config.sigma1_a_r = (1 - rendering_config.albedo_r) * rendering_config.sigma_t_rgb;
+    rendering_config.sigma1_a_g = (1 - rendering_config.albedo_g) * rendering_config.sigma_t_rgb;
+    rendering_config.sigma1_a_b = (1 - rendering_config.albedo_b) * rendering_config.sigma_t_rgb;
+
+    rendering_config.sigma1_s_r = rendering_config.albedo_r * rendering_config.sigma_t_rgb;
+    rendering_config.sigma1_s_g = rendering_config.albedo_g * rendering_config.sigma_t_rgb;
+    rendering_config.sigma1_s_b = rendering_config.albedo_b * rendering_config.sigma_t_rgb;
+
+    // printf("%f\n",rendering_config.sigma1_a_r);
+    // printf("%f\n",rendering_config.sigma1_a_g);
+    // printf("%f\n",rendering_config.sigma1_a_b);
+    // printf("%f\n",rendering_config.sigma1_s_r);
+    // printf("%f\n",rendering_config.sigma1_s_g);
+    // printf("%f\n",rendering_config.sigma1_s_b);
 
     ConstantBuffer rendering_settings_buffer = graphics::get_constant_buffer(sizeof(RenderingConfig));
     graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);

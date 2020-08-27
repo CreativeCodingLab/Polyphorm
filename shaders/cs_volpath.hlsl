@@ -9,7 +9,7 @@
 
 // Control flags
 #define TEMPORAL_ACCUMULATION
-// #define RUSSIAN_ROULETTE
+#define RUSSIAN_ROULETTE
 // #define GRADIENT_GUIDING
 
 // Illumination types
@@ -259,7 +259,7 @@ float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, f
         event_rho = get_rho(rp + t * rd);
         // grad = get_rho_gradient(rp,1.0);
         // if (length(grad) > 0.001) return t;
-        if (event_rho > 0.4 && event_rho < 0.5) {
+        if (event_rho > 0.45 && event_rho < 0.5) {
             if (!still_wall) {
                 hit_surface = true;
                 break;
@@ -272,7 +272,7 @@ float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, f
 }
 
 float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng, inout bool hit_surface) {
-	float sigma_max_inv = rho_max_inv / (sigma1_a_r + sigma1_s_r);    // this greater, steps greater
+	float sigma_max_inv = rho_max_inv / ((sigma1_a_r + sigma1_s_r + sigma1_a_g + sigma1_s_g + sigma1_a_b + sigma1_s_b) / 3);    // this greater, steps greater
     float t = t_min;
     float event_rho = 0.0;
     float grad = 0.0;
@@ -286,7 +286,7 @@ float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, 
         event_rho = get_rho(rp + t * rd);
         // grad = get_rho_gradient(rp,1.0);
         // if (length(grad) > 0.001) return t;
-        if (event_rho > 0.4 && event_rho < 0.5) {
+        if (event_rho > 0.45 && event_rho < 0.5) {
             if (!still_wall) {
                 hit_surface = true;
                 break;
@@ -352,9 +352,15 @@ float3 reflect(float3 rp, float3 rd) {
 
 }
 
+float3 get_normal(float3 rp) {
+    return normalize(-get_rho_gradient(rp, 3.0));
+}
+
 // return kr: amount of reflected light. thus 1-kr is refracted light
 float fresnel(float3 rp, float3 rd) {
-    float3 n = -get_rho_gradient(rp, 1.0);
+
+    // negativec of density gradient should be surface normal
+    float3 n = get_normal(rp);
 
     float cosi = clamp(dot(rd, n), -1, 1);
     float etai = 1;
@@ -387,16 +393,8 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     float albedo = sigma_s / (sigma_a + sigma_s);
     float rho_max_inv = 1.0 / trace_to_rho(trace_max);
 
-    // throughput and albedo are unique for each color channel (wavelength eventually)
-    float throughput_r = 1.0;
-    float throughput_g = 1.0;
-    float throughput_b = 1.0;
-    float albedo_r = sigma1_s_r / (sigma1_a_r + sigma1_s_r);
-    float albedo_g = sigma1_s_g / (sigma1_a_g + sigma1_s_g);
-    float albedo_b = sigma1_s_b / (sigma1_a_b + sigma1_s_b);
-
     // Combining rgb for now since less code change is needed, eventually need an array for each wavelength
-    float3 throughput_rgb = float3(1.0, 1.0, 1.0);
+    float3 throughput_rgb = float3(sigma1_a_r + sigma1_s_r, sigma1_a_g + sigma1_s_g, sigma1_a_b + sigma1_s_b);
     float3 albedo_rgb = float3(sigma1_s_r / (sigma1_a_r + sigma1_s_r),
                                sigma1_s_g / (sigma1_a_g + sigma1_s_g),
                                sigma1_s_b / (sigma1_a_b + sigma1_s_b));
@@ -406,7 +404,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     float3 trim_max = float3(trim_x_max, trim_y_max, trim_z_max);
     float3 l_rel_pos = 0.5 * (trim_min + trim_max);
     // float3 lp = c_low + l_rel_pos * c_high;
-    float3 lp = c_low + float3(-2.0 * c_high.x, c_high.y / 2.0, c_high.z / 2.0);
+    float3 lp = c_low + float3(5.0 * c_high.x, c_high.y / 2.0, c_high.z / 2.0);
     #endif
 
     bool in_volume = false;
@@ -440,10 +438,17 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         // Adjust the path throughput (RR or modulate)
         #ifdef RUSSIAN_ROULETTE
-        if (rng.random_float() > albedo_rgb[0] & 
-            rng.random_float() > albedo_rgb[1] &
-            rng.random_float() > albedo_rgb[2])
-            return L;
+        if (n >= 15) {
+            // Terminate by 50% chancev after 15 bounces
+            float p = 0.5;
+            if (rng.random_float() < p) {
+                return L;
+            }
+            else {
+                throughput_rgb = throughput_rgb / p;
+            }
+        }
+        else throughput_rgb *= albedo_rgb;
         #else
         throughput_rgb *= albedo_rgb;
         #endif
@@ -452,38 +457,41 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
             float reflect_chance = fresnel(rp, rd);
 
+            float p = 0.5;
+
             // reflect
-            if (rng.random_float() < 0.5) {
+            if (rng.random_float() < reflect_chance) {
 
                 // Calculate Light Contribution
                 #ifdef POINT_LIGHT
-                float3 ld = lp - rp;
+                float3 ld = normalize(lp - rp);
                 float l_distance = length(ld);
-                ld = normalize(ld);
                 float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
                 //float light_contribution = 100.0 * transmittance / max(l_distance * l_distance, 1.0);
 
                 float intensity = 1.0f;
-                int light_exposure = 3;
+                int light_exposure = 2;
 
                 float light_reflect = reflect(rp, rd);
 
-                float specular_factor = dot(normalize(ld), normalize(light_reflect));
+                float specular_factor = -dot(normalize(-rd), normalize(light_reflect));
 
                 if(specular_factor < 0) {
                     return float3(0,0,0);
                 }
 
-                specular_factor = pow(specular_factor, 64);
+                specular_factor = pow(specular_factor, 1024);
                 float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
 
-                return throughput_rgb * specular_color;
+                return throughput_rgb * specular_color * transmittance / reflect_chance;
                 #endif
                 
-                rd = reflect(rp, rd);
+                //rd = reflect(rp, rd);
                 in_volume = true;
             }
             else {
+                throughput_rgb = throughput_rgb / reflect_chance;
+                // throughput_rgb = throughput_rgb;
                 in_volume = true;
             }
         }
