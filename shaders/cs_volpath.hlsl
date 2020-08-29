@@ -19,6 +19,8 @@
 // #define HALO_ILLUMINATION
 // #define TRACE_ILLUMINATION
 
+// #define SPHERE_DEBUG
+
 RWTexture2D<float4> tex_accumulator: register(u0);
 Texture3D tex_trace : register(t1);
 SamplerState tex_trace_sampler : register(s1);
@@ -250,8 +252,6 @@ float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, f
     float event_rho = 0.0;
     float grad = 0.0;
 
-    bool still_wall = true;
-
     if (t_min >= t_max) return t;   // t_min > t_max is not supposed to happen
 	do {
 		t += delta_step(sigma_max_inv, rng.random_float());
@@ -259,14 +259,12 @@ float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, f
         event_rho = get_rho(rp + t * rd);
         // grad = get_rho_gradient(rp,1.0);
         // if (length(grad) > 0.001) return t;
-        if (event_rho > 0.45 && event_rho < 0.5) {
-            if (!still_wall) {
-                hit_surface = true;
-                break;
-            }
+        // If the ray gets out of a high density volume, then stop
+        if (event_rho < 0.5) {
+            hit_surface = true;
+            break;
         }
-        else still_wall = false;
-	} while (t <= t_max && rng.random_float() > event_rho * rho_max_inv);
+	} while (t <= t_max && rng.random_float() > 0.99 * rho_max_inv); 
 
 	return t;
 }
@@ -277,8 +275,6 @@ float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, 
     float event_rho = 0.0;
     float grad = 0.0;
 
-    bool still_wall = true;
-
     if (t_min >= t_max) return t;   // t_min > t_max is not supposed to happen
 	do {
 		t += delta_step(sigma_max_inv, rng.random_float());
@@ -286,13 +282,11 @@ float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, 
         event_rho = get_rho(rp + t * rd);
         // grad = get_rho_gradient(rp,1.0);
         // if (length(grad) > 0.001) return t;
-        if (event_rho > 0.45 && event_rho < 0.5) {
-            if (!still_wall) {
-                hit_surface = true;
-                break;
-            }
+        // If the ray enters a high density volume, then stop
+        if (event_rho > 0.5) {
+            hit_surface = true;
+            break;
         }
-        else still_wall = false;
     } while (t <= t_max);
 	return t;
 }
@@ -311,6 +305,102 @@ float occlusion_tracking(float3 rp, float3 rd, float t_min, float t_max, float r
     float transmittance = exp(-(sigma_s + sigma_a) * rho_sum * (t_max - t_min));
 
 	return transmittance;
+}
+
+// Helper for intersect_sphere()
+bool solveQuadratic(float a, float b, float c, inout float x0, inout float x1) {
+    float discr = b * b - 4 * a * c;
+    if (discr < 0) return false;
+    else if (discr == 0) {
+        x0 = -0.5 * b / a;
+        x1 = -0.5 * b / a;
+    }
+    else {
+        float q = (b > 0) ?
+            -0.5 * (b + sqrt(discr)) :
+            -0.5 * (b - sqrt(discr));
+        x0 = q / a;
+        x1 = c / q;
+    }
+    if (x0 > x1) {
+        float tmp = x0;
+        x0 = x1;
+        x1 = tmp;
+    }
+    return true;
+}
+
+// DEBUG: Sphere Material Test
+bool intersect_sphere(float3 rp, float3 rd, inout float t_intersect) {
+    
+    // Sphere Config
+    float3 center = float3(grid_x/2.0, grid_y/2.0, grid_z/2.0);
+    float radius = grid_x / 10.0;
+
+
+    float3 L = rp - center;
+    float a = dot(rd, rd);
+    float b = 2 * dot(rd, L);
+    float c = dot(L, L) - radius * radius;
+    float t0, t1;
+    if (!solveQuadratic(a, b, c, t0, t1)) return false;
+    if (t0 < 0) {
+        t0 = t1;
+        return false;
+    }
+    t_intersect = t0;
+    return true;
+}
+
+
+// DEBUG
+float3 get_sphere_normal(float3 rp) {
+    float3 center = float3(grid_x/2.0, grid_y/2.0, grid_z/2.0);
+    return normalize(rp - center);
+}
+
+// DEBUG
+float3 reflect_sphere(float3 rp, float3 rd) {
+    float3 n = get_sphere_normal(rp);
+    return rd - 2 * dot(rd, n) * n;
+}
+
+// DEBUG: Sphere Material Test
+float sphere_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng, inout bool hit_surface) {
+	
+    float t_intersect = t_min;
+    if (t_min >= t_max) return t_intersect;   // t_min > t_max is not supposed to happen
+
+    if (intersect_sphere(rp, rd, t_intersect)) {
+        hit_surface = true;
+    }
+    else {
+        t_intersect = t_max + 0.0001;
+    }
+
+
+    float t = t_min;
+
+	do {
+		t += rng.random_float();
+	} while (t <= t_intersect && rng.random_float() > rho_max_inv);
+
+	return t;
+}
+
+// DEBUG: Sphere Material Test
+float sphere_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng, inout bool hit_surface) {
+
+    float t = t_min;
+    if (t_min >= t_max) return t;   // t_min > t_max is not supposed to happen
+
+    if (intersect_sphere(rp, rd, t)) {
+        hit_surface = true;
+        return t;
+    }
+    else {
+        return t_max + 0.0001;
+    }
 }
 
 void generate_basis(float3 dir, out float3 v1, out float3 v2)
@@ -345,16 +435,22 @@ float pdf_HG(float g, float cos_angle) {
     return (1.0 - g*g) / (denominator_cubicrt * denominator_cubicrt * denominator_cubicrt);
 }
 
+// Normal is defined as a density gradient
+// Offset is variable
+float3 get_normal(float3 rp) {
+    return normalize(-get_rho_gradient(rp, 1.0));
+}
+
+// rp: surface position
+// rd: light to surface
+// out: surface to reflected light
 float3 reflect(float3 rp, float3 rd) {
-    float3 n = -get_rho_gradient(rp, 1.0);
+    float3 n = get_normal(rp);
 
     return rd - 2 * dot(rd, n) * n;
-
 }
 
-float3 get_normal(float3 rp) {
-    return normalize(-get_rho_gradient(rp, 3.0));
-}
+
 
 // return kr: amount of reflected light. thus 1-kr is refracted light
 float fresnel(float3 rp, float3 rd) {
@@ -394,7 +490,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     float rho_max_inv = 1.0 / trace_to_rho(trace_max);
 
     // Combining rgb for now since less code change is needed, eventually need an array for each wavelength
-    float3 throughput_rgb = float3(sigma1_a_r + sigma1_s_r, sigma1_a_g + sigma1_s_g, sigma1_a_b + sigma1_s_b);
+    float3 throughput_rgb = float3(1.0, 1.0, 1.0);
     float3 albedo_rgb = float3(sigma1_s_r / (sigma1_a_r + sigma1_s_r),
                                sigma1_s_g / (sigma1_a_g + sigma1_s_g),
                                sigma1_s_b / (sigma1_a_b + sigma1_s_b));
@@ -404,12 +500,12 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     float3 trim_max = float3(trim_x_max, trim_y_max, trim_z_max);
     float3 l_rel_pos = 0.5 * (trim_min + trim_max);
     // float3 lp = c_low + l_rel_pos * c_high;
-    float3 lp = c_low + float3(5.0 * c_high.x, c_high.y / 2.0, c_high.z / 2.0);
+    float3 lp = c_low + float3(10.0 * c_high.x, c_high.y / 3.0, c_high.z / 2.0);
     #endif
 
     bool in_volume = false;
 
-    for (int n = 0; n < nBounces; ++n) {
+    for (int n = 0; n < nBounces; n++) {
 
         // Sample collision distance
         float2 t = ray_AABB_intersection(rp, rd, c_low, c_high);
@@ -417,15 +513,29 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         float t_event;
 
-        bool hit_surface;
+        bool hit_surface = false;
         
+        #ifdef SPHERE_DEBUG
         if (in_volume) {
-            t_event = delta_tracking_in_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
+            t_event = sphere_tracking_in_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
             if (hit_surface) in_volume = false;
         }
         else {
-            t_event = delta_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
+            t_event = sphere_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
+            if (hit_surface) in_volume = true;
         }
+        #else
+        if (in_volume) {
+            t_event = delta_tracking_in_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
+            if (hit_surface) in_volume = false;
+            // if (hit_surface) return float3(0,1,0);
+            // else return float3(0,0,1);
+        }
+        else {
+            t_event = delta_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
+            if (hit_surface) in_volume = true;
+        }
+        #endif
 
         // If the ray gets out of AABB, return color
         if (t_event >= t.y) {
@@ -436,71 +546,62 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         // Move to the next intersection
         rp += t_event * rd;
 
+        #ifdef POINT_LIGHT
+        // If a ray hits a surface and get inside.
+        if (in_volume && hit_surface) {
+
+            // float reflect_chance = fresnel(rp, rd);
+
+            // Calculate Light Contribution
+            float3 ld = normalize(lp - rp); // surface to light
+            float l_distance = length(ld);
+            float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
+            //float light_contribution = 100.0 * transmittance / max(l_distance * l_distance, 1.0);
+            float light_reflect = reflect(rp, ld);  // surface to reflected light
+            float specular_factor = dot(normalize(rd), normalize(light_reflect));
+            float intensity = 1.0f;
+            int light_exposure = 2;    
+
+            specular_factor = pow(specular_factor, 1024);
+
+            // Calculate specular light contribution with the probability of specular_factor
+            if (specular_factor > 0 && rng.random_float() < specular_factor) {
+
+                // return float3(100,0,0);
+                float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
+                return throughput_rgb * specular_color * transmittance / specular_factor;
+
+            }
+            else {
+                if (specular_factor > 0) throughput_rgb = throughput_rgb / (1 - specular_factor);
+                rd = sample_HG(rd, scattering_anisotropy, rng);
+            }
+        }
+        else {
+            rd = sample_HG(rd, scattering_anisotropy, rng);
+        }
+        #else
+        rd = sample_HG(rd, scattering_anisotropy, rng);
+        #endif
+
         // Adjust the path throughput (RR or modulate)
         #ifdef RUSSIAN_ROULETTE
         if (n >= 15) {
             // Terminate by 50% chancev after 15 bounces
             float p = 0.5;
             if (rng.random_float() < p) {
-                return L;
+                return float3(0,0,0);
             }
             else {
-                throughput_rgb = throughput_rgb / p;
+                throughput_rgb = throughput_rgb / (1 - p);
             }
         }
         else throughput_rgb *= albedo_rgb;
         #else
         throughput_rgb *= albedo_rgb;
         #endif
-
-        if (!in_volume && hit_surface) {
-
-            float reflect_chance = fresnel(rp, rd);
-
-            float p = 0.5;
-
-            // reflect
-            if (rng.random_float() < reflect_chance) {
-
-                // Calculate Light Contribution
-                #ifdef POINT_LIGHT
-                float3 ld = normalize(lp - rp);
-                float l_distance = length(ld);
-                float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
-                //float light_contribution = 100.0 * transmittance / max(l_distance * l_distance, 1.0);
-
-                float intensity = 1.0f;
-                int light_exposure = 2;
-
-                float light_reflect = reflect(rp, rd);
-
-                float specular_factor = -dot(normalize(-rd), normalize(light_reflect));
-
-                if(specular_factor < 0) {
-                    return float3(0,0,0);
-                }
-
-                specular_factor = pow(specular_factor, 1024);
-                float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
-
-                return throughput_rgb * specular_color * transmittance / reflect_chance;
-                #endif
-                
-                //rd = reflect(rp, rd);
-                in_volume = true;
-            }
-            else {
-                throughput_rgb = throughput_rgb / reflect_chance;
-                // throughput_rgb = throughput_rgb;
-                in_volume = true;
-            }
-        }
-        else {
-            rd = sample_HG(rd, scattering_anisotropy, rng);
-        }
-
     }
-    return L;
+    return float3(0,0,0);;
 }
 
 [numthreads(PT_GROUP_SIZE_X, PT_GROUP_SIZE_Y, 1)]

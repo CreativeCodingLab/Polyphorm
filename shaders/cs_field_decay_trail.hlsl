@@ -1,6 +1,4 @@
-RWTexture3D<half> tex_in: register(u0);
-RWTexture3D<half> tex_out: register(u1);
-RWTexture3D<half4> tex_trace: register(u2);
+RWTexture3D<half4> tex_trace: register(u0);
 
 cbuffer ConfigBuffer : register(b0)
 {
@@ -59,50 +57,10 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
           uint3 dispatchThreadId : SV_DispatchThreadID){
     uint3 p = dispatchThreadId.xyz;
 
-    // Average deposit values in a 3x3x3 neighborhood
+    // Average trace values in a 3x3x3 neighborhood
     // Apply distance-based weighting to prevent overestimation along diagonals
     float v = 0.0;
     float w = 0.0;
-    for (int dx = -1; dx <= 1; dx++) {
-        for (int dy = -1; dy <= 1; dy++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                // float weight = 1.0 / sqrt(float(1 + abs(dx) + abs(dy) + abs(dz)));
-                float weight = (all(int3(dx,dy,dz)) == 0)? 1.0 : 1.0 / sqrt(float(abs(dx) + abs(dy) + abs(dz)));
-                int3 txcoord = int3(p) + int3(dx, dy, dz);
-                txcoord.x = txcoord.x % world_width;
-                txcoord.y = txcoord.y % world_height;
-                txcoord.z = txcoord.z % world_depth;
-                v += weight * tex_in[txcoord];
-                w += weight;
-            }
-        }
-    }
-    v /= w;
-
-    // Decay the deposit by a constant factor
-    v *= decay_factor;
-    tex_out[p] = v;
-
-    // Alternative distance-field decay
-    // float max_deposit = 0.0;
-    // for (int dx = -1; dx <= 1; dx++) {
-    //     for (int dy = -1; dy <= 1; dy++) {
-    //         for (int dz = -1; dz <= 1; dz++) {
-    //             float weight = 1.0 / sqrt(float(1 + abs(dx) + abs(dy) + abs(dz)));
-    //             int3 txcoord = int3(p) + int3(dx, dy, dz);
-    //             float val = weight * tex_in[txcoord];
-    //             max_deposit = (val < max_deposit)? max_deposit : val;
-    //         }
-    //     }
-    // }
-    // tex_out[p] = max(max_deposit - decay_factor * 0.01, 0.0);
-
-    
-
-    // Average trace values in a 3x3x3 neighborhood
-    // Apply distance-based weighting to prevent overestimation along diagonals
-    v = 0.0;
-    w = 0.0;
     int half_window_size = 2;
     for (int dx = -half_window_size; dx <= half_window_size; dx++) {
         for (int dy = -half_window_size; dy <= half_window_size; dy++) {
@@ -140,4 +98,3 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     // tex_trace[p] *= 0.99;
     // tex_trace[p] *= 0.985 + 0.01 * rng.random_float();
 }
-

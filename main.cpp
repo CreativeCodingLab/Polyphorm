@@ -442,11 +442,18 @@ int main(int argc, char **argv)
     printf("cs_agents_propagate shader compiled...\n");
 
     // Decay/diffusion shader
-    File decay_compute_shader_file = file_system::read_file("cs_field_decay_custome.hlsl");
+    File decay_compute_shader_file = file_system::read_file("cs_field_decay.hlsl");
     ComputeShader decay_compute_shader = graphics::get_compute_shader_from_code((char *)decay_compute_shader_file.data, decay_compute_shader_file.size);
     file_system::release_file(decay_compute_shader_file);
     assert(graphics::is_ready(&decay_compute_shader));
     printf("cs_field_decay shader compiled...\n");
+
+    // Trail Diffuse shader
+    File decay_trail_shader_file = file_system::read_file("cs_field_decay_trail.hlsl");
+    ComputeShader decay_trail_shader = graphics::get_compute_shader_from_code((char *)decay_trail_shader_file.data, decay_trail_shader_file.size);
+    file_system::release_file(decay_trail_shader_file);
+    assert(graphics::is_ready(&decay_trail_shader));
+    printf("cs_field_trail shader compiled...\n");
 
     // Vertex shader for displaying textures.
     vertex_shader_file = file_system::read_file("vs_2d.hlsl"); 
@@ -669,7 +676,7 @@ int main(int argc, char **argv)
     rendering_config.pt_iteration = 0;
     rendering_config.sigma_s = 0.0;
     rendering_config.sigma_a = 0.5;
-    rendering_config.sigma_e = 1.0;
+    rendering_config.sigma_e = 2.0;
     rendering_config.trace_max = 100.0;
     rendering_config.camera_offset_x = 0.0;
     rendering_config.camera_offset_y = 0.0;
@@ -684,8 +691,8 @@ int main(int argc, char **argv)
 
     // Compute sigma_a and sigma_s for each of RGB
     rendering_config.sigma_t_rgb = 0.9;
-    rendering_config.albedo_r = 0.95;
-    rendering_config.albedo_g = 0.90;
+    rendering_config.albedo_r = 0.92;
+    rendering_config.albedo_g = 0.88;
     rendering_config.albedo_b = 0.05;
 
     rendering_config.sigma1_a_r = (1 - rendering_config.albedo_r) * rendering_config.sigma_t_rgb;
@@ -763,6 +770,20 @@ int main(int argc, char **argv)
     bool reset_pt = false;
     float background_color = 0.0;
     VisualizationMode vis_mode = VisualizationMode::VM_PARTICLES;
+
+    bool smooth_trail = true;
+
+    // Update simulation config
+    graphics::update_constant_buffer(&config_buffer, &simulation_config);
+    graphics::set_constant_buffer(&config_buffer, 0);
+
+    // Decay only trail
+    if (smooth_trail) {
+        graphics::set_compute_shader(&decay_trail_shader);
+        graphics::set_texture_compute(&trace_tex, 0);
+        graphics::run_compute(GRID_RESOLUTION_X / 8, GRID_RESOLUTION_Y / 8, GRID_RESOLUTION_Z / 8);
+        graphics::unset_texture_compute(0);
+    }
 
     while(is_running)
     {
@@ -1508,6 +1529,7 @@ int main(int argc, char **argv)
     graphics::release(&blit_compute_shader);
     graphics::release(&compute_shader);
     graphics::release(&decay_compute_shader);
+    graphics::release(&decay_trail_shader);
     graphics::release(&cs_density_histo);
     graphics::release(&quad_mesh);
     graphics::release(&super_quad_mesh);
