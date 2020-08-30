@@ -231,12 +231,17 @@ struct RenderingConfig {
     float sigma1_a_g;
     float sigma1_a_b;
     float slime_ior;
-    int tmp2;
-
+    float light_pos;
+    
+    float sphere_pos;
+    int shininess;
     float sigma_t_rgb;
     float albedo_r;
+    
     float albedo_g;
     float albedo_b;
+    int tmp1;
+    int tmp2;
 
 };
 
@@ -688,6 +693,9 @@ int main(int argc, char **argv)
     rendering_config.scattering_anisotropy = 0.9;
 
     rendering_config.slime_ior = 1.45;
+    rendering_config.light_pos = 0;
+    rendering_config.sphere_pos = 0;
+    rendering_config.shininess = 256;
 
     // Compute sigma_a and sigma_s for each of RGB
     rendering_config.sigma_t_rgb = 0.9;
@@ -1495,6 +1503,21 @@ int main(int argc, char **argv)
                 reset_pt |= ui::add_slider(&panel, "TRACE_MAX", &trmax, -4.0, 4.0);
                 rendering_config.trace_max = math::pow(HISTOGRAM_BASE, trmax);
                 // reset_pt |= ui::add_slider(&panel, "GUIDING MAG", &rendering_config.guiding_strength, 0.0, 0.6);
+
+                // Sphere Position Offset
+                float sphere_pos = rendering_config.sphere_pos;
+                reset_pt |= ui::add_slider(&panel, "Sphere Position", &sphere_pos, -1000.0, 1000.0);
+                rendering_config.sphere_pos = sphere_pos;
+                
+                // Point Light Position Offset
+                float light_pos = rendering_config.light_pos;
+                reset_pt |= ui::add_slider(&panel, "Light Position", &light_pos, -1000.0, 1000.0);
+                rendering_config.light_pos = light_pos;
+
+                // Shininess Term
+                float shininess = rendering_config.shininess;
+                reset_pt |= ui::add_slider(&panel, "shininess", &shininess, 1.0, 2000.0);
+                rendering_config.shininess = math::floor(shininess);
 
                 float expo = log(rendering_config.exposure) / log(10.0);
                 if (bool(rendering_config.compressive_accumulation))

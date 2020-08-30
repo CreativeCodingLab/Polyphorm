@@ -19,7 +19,7 @@
 // #define HALO_ILLUMINATION
 // #define TRACE_ILLUMINATION
 
-// #define SPHERE_DEBUG
+#define SPHERE_DEBUG
 
 RWTexture2D<float4> tex_accumulator: register(u0);
 Texture3D tex_trace : register(t1);
@@ -82,6 +82,10 @@ cbuffer ConfigBuffer : register(b4)
     float sigma1_a_g;
     float sigma1_a_b;
     float slime_ior;
+
+    float light_pos;
+    float sphere_pos;
+    int shininess;
 
 };
 
@@ -334,7 +338,7 @@ bool solveQuadratic(float a, float b, float c, inout float x0, inout float x1) {
 bool intersect_sphere(float3 rp, float3 rd, inout float t_intersect) {
     
     // Sphere Config
-    float3 center = float3(grid_x/2.0, grid_y/2.0, grid_z/2.0);
+    float3 center = float3(grid_x/2.0, grid_y/2.0 + sphere_pos, grid_z/2.0);
     float radius = grid_x / 10.0;
 
 
@@ -355,7 +359,7 @@ bool intersect_sphere(float3 rp, float3 rd, inout float t_intersect) {
 
 // DEBUG
 float3 get_sphere_normal(float3 rp) {
-    float3 center = float3(grid_x/2.0, grid_y/2.0, grid_z/2.0);
+    float3 center = float3(grid_x/2.0, grid_y/2.0 + sphere_pos, grid_z/2.0);
     return normalize(rp - center);
 }
 
@@ -500,7 +504,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     float3 trim_max = float3(trim_x_max, trim_y_max, trim_z_max);
     float3 l_rel_pos = 0.5 * (trim_min + trim_max);
     // float3 lp = c_low + l_rel_pos * c_high;
-    float3 lp = c_low + float3(10.0 * c_high.x, c_high.y / 3.0, c_high.z / 2.0);
+    float3 lp = c_low + float3(5.0 * c_high.x, c_high.y / 2.0 + light_pos, c_high.z / 2.0);
     #endif
 
     bool in_volume = false;
@@ -557,29 +561,28 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
             float l_distance = length(ld);
             float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
             //float light_contribution = 100.0 * transmittance / max(l_distance * l_distance, 1.0);
-            float light_reflect = reflect(rp, ld);  // surface to reflected light
-            float specular_factor = dot(normalize(rd), normalize(light_reflect));
-            float intensity = 1.0f;
-            int light_exposure = 2;    
-
-            specular_factor = pow(specular_factor, 1024);
+            float light_reflect = reflect_sphere(rp, ld);  // surface to reflected light
+            float specular_factor = dot(normalize(rd), normalize(light_reflect)); 
 
             // Calculate specular light contribution with the probability of specular_factor
-            if (specular_factor > 0 && rng.random_float() < specular_factor) {
+            if (specular_factor > 0) {
 
-                // return float3(100,0,0);
-                float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
-                return throughput_rgb * specular_color * transmittance / specular_factor;
+                specular_factor = pow(specular_factor, shininess);
 
-            }
-            else {
-                if (specular_factor > 0) throughput_rgb = throughput_rgb / (1 - specular_factor);
-                rd = sample_HG(rd, scattering_anisotropy, rng);
+                if (rng.random_float() < specular_factor) {
+
+                    float intensity = 1.0f;
+                    int light_exposure = 2;   
+
+                    float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
+                    return throughput_rgb * specular_color * transmittance / specular_factor;
+                }
+                else {
+                    throughput_rgb = throughput_rgb / (1 - specular_factor);
+                }
             }
         }
-        else {
-            rd = sample_HG(rd, scattering_anisotropy, rng);
-        }
+        rd = sample_HG(rd, scattering_anisotropy, rng);
         #else
         rd = sample_HG(rd, scattering_anisotropy, rng);
         #endif
