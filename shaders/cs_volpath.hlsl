@@ -19,7 +19,7 @@
 // #define HALO_ILLUMINATION
 // #define TRACE_ILLUMINATION
 
-#define SPHERE_DEBUG
+//#define SPHERE_DEBUG
 
 RWTexture2D<float4> tex_accumulator: register(u0);
 Texture3D tex_trace : register(t1);
@@ -366,7 +366,7 @@ float3 get_sphere_normal(float3 rp) {
 // DEBUG
 float3 reflect_sphere(float3 rp, float3 rd) {
     float3 n = get_sphere_normal(rp);
-    return rd - 2 * dot(rd, n) * n;
+    return rd - 2 * dot(normalize(rd), n) * n;
 }
 
 // DEBUG: Sphere Material Test
@@ -451,7 +451,7 @@ float3 get_normal(float3 rp) {
 float3 reflect(float3 rp, float3 rd) {
     float3 n = get_normal(rp);
 
-    return rd - 2 * dot(rd, n) * n;
+    return rd - 2 * dot(normalize(rd), n) * n;
 }
 
 
@@ -504,7 +504,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     float3 trim_max = float3(trim_x_max, trim_y_max, trim_z_max);
     float3 l_rel_pos = 0.5 * (trim_min + trim_max);
     // float3 lp = c_low + l_rel_pos * c_high;
-    float3 lp = c_low + float3(5.0 * c_high.x, c_high.y / 2.0 + light_pos, c_high.z / 2.0);
+    float3 lp = c_low + float3(1.0 * c_high.x, c_high.y / 2.0 + light_pos, c_high.z / 2.0);
     #endif
 
     bool in_volume = false;
@@ -561,7 +561,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
             float l_distance = length(ld);
             float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
             //float light_contribution = 100.0 * transmittance / max(l_distance * l_distance, 1.0);
-            float light_reflect = reflect_sphere(rp, ld);  // surface to reflected light
+            float3 light_reflect = reflect(rp, ld);  // surface to reflected light
             float specular_factor = dot(normalize(rd), normalize(light_reflect)); 
 
             // Calculate specular light contribution with the probability of specular_factor
@@ -572,7 +572,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
                 if (rng.random_float() < specular_factor) {
 
                     float intensity = 1.0f;
-                    int light_exposure = 2;   
+                    int light_exposure = 5;   
 
                     float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
                     return throughput_rgb * specular_color * transmittance / specular_factor;

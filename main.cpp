@@ -695,10 +695,10 @@ int main(int argc, char **argv)
     rendering_config.slime_ior = 1.45;
     rendering_config.light_pos = 0;
     rendering_config.sphere_pos = 0;
-    rendering_config.shininess = 256;
+    rendering_config.shininess = 64;
 
     // Compute sigma_a and sigma_s for each of RGB
-    rendering_config.sigma_t_rgb = 0.9;
+    rendering_config.sigma_t_rgb = 0.4;
     rendering_config.albedo_r = 0.92;
     rendering_config.albedo_g = 0.88;
     rendering_config.albedo_b = 0.05;
