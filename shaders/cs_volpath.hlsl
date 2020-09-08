@@ -7,6 +7,14 @@
 #define INTENSITY_EPSILON 1.e-4
 #define NUMERICAL_EPSILON 1.e-4
 
+// More accurate PI
+#ifndef M_PI
+#define M_PI          3.14159265358979323846
+#endif
+#define     EQN_EPS     1e-9
+#define	    IsZero(x)	((x) > -EQN_EPS && (x) < EQN_EPS)
+#define     cbrt(x)     ((x) > 0.0 ? pow((float)(x), 1.0/3.0) : ((x) < 0.0 ? -pow((float)-(x), 1.0/3.0) : 0.0))
+
 // Control flags
 #define TEMPORAL_ACCUMULATION
 #define RUSSIAN_ROULETTE
@@ -487,6 +495,237 @@ float fresnel(float3 rp, float3 rd) {
     }
 }
 
+int SolveQuadric(inout float3 c, inout float2 s) {
+    float p, q, D;
+
+    /* normal form: x^2 + px + q = 0 */
+
+    p = c[ 1 ] / (2 * c[ 2 ]);
+    q = c[ 0 ] / c[ 2 ];
+
+    D = p * p - q;
+
+    if (IsZero(D))
+    {
+	s[ 0 ] = - p;
+	return 1;
+    }
+    else if (D < 0)
+    {
+	return 0;
+    }
+    else /* if (D > 0) */
+    {
+	float sqrt_D = sqrt(D);
+
+	s[ 0 ] =   sqrt_D - p;
+	s[ 1 ] = - sqrt_D - p;
+	return 2;
+    }
+}
+
+int SolveCubic(inout float4 c, inout float3 s) {
+    int     i, num;
+    float  sub;
+    float  A, B, C;
+    float  sq_A, p, q;
+    float  cb_p, D;
+
+    /* normal form: x^3 + Ax^2 + Bx + C = 0 */
+
+    A = c[ 2 ] / c[ 3 ];
+    B = c[ 1 ] / c[ 3 ];
+    C = c[ 0 ] / c[ 3 ];
+
+    /*  substitute x = y - A/3 to eliminate quadric term:
+	x^3 +px + q = 0 */
+
+    sq_A = A * A;
+    p = 1.0/3 * (- 1.0/3 * sq_A + B);
+    q = 1.0/2 * (2.0/27 * A * sq_A - 1.0/3 * A * B + C);
+
+    /* use Cardano's formula */
+
+    cb_p = p * p * p;
+    D = q * q + cb_p;
+
+    if (IsZero(D))
+    {
+	if (IsZero(q)) /* one triple solution */
+	{
+	    s[ 0 ] = 0;
+	    num = 1;
+	}
+	else /* one single and one double solution */
+	{
+	    float u = cbrt(-q);
+	    s[ 0 ] = 2 * u;
+	    s[ 1 ] = - u;
+	    num = 2;
+	}
+    }
+    else if (D < 0) /* Casus irreducibilis: three real solutions */
+    {
+	float phi = 1.0/3 * acos(-q / sqrt(-cb_p));
+	float t = 2 * sqrt(-p);
+
+	s[ 0 ] =   t * cos(phi);
+	s[ 1 ] = - t * cos(phi + M_PI / 3);
+	s[ 2 ] = - t * cos(phi - M_PI / 3);
+	num = 3;
+    }
+    else /* one real solution */
+    {
+	float sqrt_D = sqrt(D);
+	float u = cbrt(sqrt_D - q);
+	float v = - cbrt(sqrt_D + q);
+
+	s[ 0 ] = u + v;
+	num = 1;
+    }
+
+    /* resubstitute */
+
+    sub = 1.0/3 * A;
+
+    for (i = 0; i < num; ++i)
+	s[ i ] -= sub;
+
+    return num;
+}
+
+
+int SolveQuartic(inout float3 c1, inout float2 c2, inout float4 s) {
+    float4  coeffs;
+    float  z, u, v, sub;
+    float  A, B, C, D;
+    float  sq_A, p, q, r;
+    int     i, num;
+
+    /* normal form: x^4 + Ax^3 + Bx^2 + Cx + D = 0 */
+
+    A = c2[ 0 ] / c2[ 1 ];
+    B = c1[ 2 ] / c2[ 1 ];
+    C = c1[ 1 ] / c2[ 1 ];
+    D = c1[ 0 ] / c2[ 1 ];
+
+    /*  substitute x = y - A/4 to eliminate cubic term:
+	x^4 + px^2 + qx + r = 0 */
+
+    sq_A = A * A;
+    p = - 3.0/8 * sq_A + B;
+    q = 1.0/8 * sq_A * A - 1.0/2 * A * B + C;
+    r = - 3.0/256*sq_A*sq_A + 1.0/16*sq_A*B - 1.0/4*A*C + D;
+
+    if (IsZero(r))
+    {
+	/* no absolute term: y(y^3 + py + q) = 0 */
+
+	coeffs[ 0 ] = q;
+	coeffs[ 1 ] = p;
+	coeffs[ 2 ] = 0;
+	coeffs[ 3 ] = 1;
+
+	float3 s3;
+    s3[0] = s[0];
+    s3[1] = s[1];
+    s3[2] = s[2];
+	num = SolveCubic(coeffs, s3);
+    s[0] = s3[0];
+    s[1] = s3[1];
+    s[2] = s3[2];
+
+	s[ num++ ] = 0;
+    }
+    else
+    {
+	/* solve the resolvent cubic ... */
+
+	coeffs[ 0 ] = 1.0/2 * r * p - 1.0/8 * q * q;
+	coeffs[ 1 ] = - r;
+	coeffs[ 2 ] = - 1.0/2 * p;
+	coeffs[ 3 ] = 1;
+
+    float3 s3;
+    s3[0] = s[0];
+    s3[1] = s[1];
+    s3[2] = s[2];
+	SolveCubic(coeffs, s3);
+    s[0] = s3[0];
+    s[1] = s3[1];
+    s[2] = s3[2];
+
+	/* ... and take the one real solution ... */
+
+	z = s[ 0 ];
+
+	/* ... to build two quadric equations */
+
+	u = z * z - r;
+	v = 2 * z - p;
+
+	if (IsZero(u))
+	    u = 0;
+	else if (u > 0)
+	    u = sqrt(u);
+	else
+	    return 0;
+
+	if (IsZero(v))
+	    v = 0;
+	else if (v > 0)
+	    v = sqrt(v);
+	else
+	    return 0;
+
+	coeffs[ 0 ] = z - u;
+	coeffs[ 1 ] = q < 0 ? -v : v;
+	coeffs[ 2 ] = 1;
+
+    float2 s2;
+    float3 coeffs3;
+    s2[0] = s[0];
+    s2[1] = s[1];
+    coeffs3[0] = coeffs[0];
+    coeffs3[1] = coeffs[1];
+    coeffs3[2] = coeffs[2];
+	num = SolveQuadric(coeffs3, s2);
+    s[0] = s2[0];
+    s[1] = s2[1];
+    coeffs[0] = coeffs3[0];
+    coeffs[1] = coeffs3[1];
+    coeffs[2] = coeffs3[2];
+
+	coeffs[ 0 ]= z + u;
+	coeffs[ 1 ] = q < 0 ? v : -v;
+	coeffs[ 2 ] = 1;
+
+    int n = num;
+    s2[0] = s[n];
+    s2[1] = s[n+1];
+    coeffs3[0] = coeffs[0];
+    coeffs3[1] = coeffs[1];
+    coeffs3[2] = coeffs[2];
+	num += SolveQuadric(coeffs3, s2);
+    s[n] = s2[0];
+    s[n+1] = s2[1];
+    coeffs[0] = coeffs3[0];
+    coeffs[1] = coeffs3[1];
+    coeffs[2] = coeffs3[2];
+
+    }
+
+    /* resubstitute */
+
+    sub = 1.0/4 * A;
+
+    for (i = 0; i < num; ++i)
+	s[ i ] -= sub;
+
+    return num;
+}
+
+
 float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBounces, inout RNG rng) {
     float3 L = float3(0.0, 0.0, 0.0);
     float throughput = 1.0;
@@ -508,6 +747,12 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     #endif
 
     bool in_volume = false;
+
+    float3 v3 = float3(1.0, -7.0, 5.0);
+    float2 v2 = float2(31.0, -30.0);
+    float4 v4 = float4(0.0, 0.0, 0.0, 0.0);
+    int nn = SolveQuartic(v3, v2, v4);
+    if (nn == 4) return float3(0,0,0);
 
     for (int n = 0; n < nBounces; n++) {
 
