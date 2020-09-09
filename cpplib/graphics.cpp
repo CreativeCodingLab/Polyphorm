@@ -991,8 +991,11 @@ CompiledShader compile_shader(void *source, uint32_t source_size, char *target)
 	ID3DBlob *error_msg;
 	HRESULT hr = D3DCompile(source, source_size, NULL, NULL, NULL, "main", target, flags, NULL, &compiled_shader.blob, &error_msg);
 	if (FAILED(hr)) {
+		printf("Error!\n"); 
 		PRINT_DEBUG("Failed to compile shader!");
 		if (error_msg) {
+			printf("%s\n", (char *)error_msg->GetBufferPointer());
+			printf("Error!\n"); 
 			PRINT_DEBUG((char *)error_msg->GetBufferPointer());
 			error_msg->Release();
 		}

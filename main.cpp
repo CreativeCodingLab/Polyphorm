@@ -235,13 +235,15 @@ struct RenderingConfig {
     
     float sphere_pos;
     int shininess;
+    float some_slider;
     float sigma_t_rgb;
+
     float albedo_r;
-    
     float albedo_g;
     float albedo_b;
-    int tmp1;
     int tmp2;
+
+    // add new variables before albedos. Some bug.
 
 };
 
@@ -702,6 +704,7 @@ int main(int argc, char **argv)
     rendering_config.albedo_r = 0.92;
     rendering_config.albedo_g = 0.88;
     rendering_config.albedo_b = 0.05;
+    rendering_config.some_slider = 0;
 
     rendering_config.sigma1_a_r = (1 - rendering_config.albedo_r) * rendering_config.sigma_t_rgb;
     rendering_config.sigma1_a_g = (1 - rendering_config.albedo_g) * rendering_config.sigma_t_rgb;
@@ -1518,6 +1521,11 @@ int main(int argc, char **argv)
                 float shininess = rendering_config.shininess;
                 reset_pt |= ui::add_slider(&panel, "shininess", &shininess, 1.0, 2000.0);
                 rendering_config.shininess = math::floor(shininess);
+
+                // Some slider for debug
+                float some_slider = rendering_config.some_slider;
+                reset_pt |= ui::add_slider(&panel, "some_slider", &some_slider, 0.0, 4.0);
+                rendering_config.some_slider = some_slider;
 
                 float expo = log(rendering_config.exposure) / log(10.0);
                 if (bool(rendering_config.compressive_accumulation))

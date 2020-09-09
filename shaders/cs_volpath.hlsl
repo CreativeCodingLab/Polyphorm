@@ -94,6 +94,7 @@ cbuffer ConfigBuffer : register(b4)
     float light_pos;
     float sphere_pos;
     int shininess;
+    float some_slider;
 
 };
 
@@ -600,7 +601,7 @@ int SolveQuartic(inout float3 c1, inout float2 c2, inout float4 s) {
     float  z, u, v, sub;
     float  A, B, C, D;
     float  sq_A, p, q, r;
-    int     i, num;
+    int     i, num = 0;
 
     /* normal form: x^4 + Ax^3 + Bx^2 + Cx + D = 0 */
 
@@ -619,100 +620,111 @@ int SolveQuartic(inout float3 c1, inout float2 c2, inout float4 s) {
 
     if (IsZero(r))
     {
-	/* no absolute term: y(y^3 + py + q) = 0 */
+        /* no absolute term: y(y^3 + py + q) = 0 */
 
-	coeffs[ 0 ] = q;
-	coeffs[ 1 ] = p;
-	coeffs[ 2 ] = 0;
-	coeffs[ 3 ] = 1;
+        coeffs[ 0 ] = q;
+        coeffs[ 1 ] = p;
+        coeffs[ 2 ] = 0;
+        coeffs[ 3 ] = 1;
 
-	float3 s3;
-    s3[0] = s[0];
-    s3[1] = s[1];
-    s3[2] = s[2];
-	num = SolveCubic(coeffs, s3);
-    s[0] = s3[0];
-    s[1] = s3[1];
-    s[2] = s3[2];
+        float3 s3;
+        s3[0] = s[0];
+        s3[1] = s[1];
+        s3[2] = s[2];
+        num = SolveCubic(coeffs, s3);
+        s[0] = s3[0];
+        s[1] = s3[1];
+        s[2] = s3[2];
 
-	s[ num++ ] = 0;
+        int n = num++;
+        if (n == 0) s[0] = 0;
+        if (n == 1) s[1] = 0;
+        if (n == 2) s[2] = 0;
+        if (n == 3) s[3] = 0;
+        //s[ num++ ] = 0;
     }
     else
     {
-	/* solve the resolvent cubic ... */
+        /* solve the resolvent cubic ... */
 
-	coeffs[ 0 ] = 1.0/2 * r * p - 1.0/8 * q * q;
-	coeffs[ 1 ] = - r;
-	coeffs[ 2 ] = - 1.0/2 * p;
-	coeffs[ 3 ] = 1;
+        coeffs[ 0 ] = 1.0/2 * r * p - 1.0/8 * q * q;
+        coeffs[ 1 ] = - r;
+        coeffs[ 2 ] = - 1.0/2 * p;
+        coeffs[ 3 ] = 1;
 
-    float3 s3;
-    s3[0] = s[0];
-    s3[1] = s[1];
-    s3[2] = s[2];
-	SolveCubic(coeffs, s3);
-    s[0] = s3[0];
-    s[1] = s3[1];
-    s[2] = s3[2];
+        float3 s3;
+        s3[0] = s[0];
+        s3[1] = s[1];
+        s3[2] = s[2];
+        SolveCubic(coeffs, s3);
+        s[0] = s3[0];
+        s[1] = s3[1];
+        s[2] = s3[2];
 
-	/* ... and take the one real solution ... */
+        /* ... and take the one real solution ... */
 
-	z = s[ 0 ];
+        z = s[ 0 ];
 
-	/* ... to build two quadric equations */
+        /* ... to build two quadric equations */
 
-	u = z * z - r;
-	v = 2 * z - p;
+        u = z * z - r;
+        v = 2 * z - p;
 
-	if (IsZero(u))
-	    u = 0;
-	else if (u > 0)
-	    u = sqrt(u);
-	else
-	    return 0;
+        if (IsZero(u))
+            u = 0;
+        else if (u > 0)
+            u = sqrt(u);
+        else
+            return 0;
 
-	if (IsZero(v))
-	    v = 0;
-	else if (v > 0)
-	    v = sqrt(v);
-	else
-	    return 0;
+        if (IsZero(v))
+            v = 0;
+        else if (v > 0)
+            v = sqrt(v);
+        else
+            return 0;
 
-	coeffs[ 0 ] = z - u;
-	coeffs[ 1 ] = q < 0 ? -v : v;
-	coeffs[ 2 ] = 1;
+        coeffs[ 0 ] = z - u;
+        coeffs[ 1 ] = q < 0 ? -v : v;
+        coeffs[ 2 ] = 1;
 
-    float2 s2;
-    float3 coeffs3;
-    s2[0] = s[0];
-    s2[1] = s[1];
-    coeffs3[0] = coeffs[0];
-    coeffs3[1] = coeffs[1];
-    coeffs3[2] = coeffs[2];
-	num = SolveQuadric(coeffs3, s2);
-    s[0] = s2[0];
-    s[1] = s2[1];
-    coeffs[0] = coeffs3[0];
-    coeffs[1] = coeffs3[1];
-    coeffs[2] = coeffs3[2];
+        float2 s2;
+        float3 coeffs3;
+        s2[0] = s[0];
+        s2[1] = s[1];
+        coeffs3[0] = coeffs[0];
+        coeffs3[1] = coeffs[1];
+        coeffs3[2] = coeffs[2];
+        num = SolveQuadric(coeffs3, s2);
+        s[0] = s2[0];
+        s[1] = s2[1];
 
-	coeffs[ 0 ]= z + u;
-	coeffs[ 1 ] = q < 0 ? v : -v;
-	coeffs[ 2 ] = 1;
+        coeffs[ 0 ]= z + u;
+        if (q < 0) coeffs[1] = v;
+        if (q >= 0) coeffs[1] = -v;
+        //coeffs[ 1 ] = q < 0 ? v : -v;
+        coeffs[ 2 ] = 1;
 
-    int n = num;
-    s2[0] = s[n];
-    s2[1] = s[n+1];
-    coeffs3[0] = coeffs[0];
-    coeffs3[1] = coeffs[1];
-    coeffs3[2] = coeffs[2];
-	num += SolveQuadric(coeffs3, s2);
-    s[n] = s2[0];
-    s[n+1] = s2[1];
-    coeffs[0] = coeffs3[0];
-    coeffs[1] = coeffs3[1];
-    coeffs[2] = coeffs3[2];
+        int n = num;
+        s2[0] = s[0 + n];
+        s2[1] = s[1 + n];
+        coeffs3[0] = coeffs[0];
+        coeffs3[1] = coeffs[1];
+        coeffs3[2] = coeffs[2];
+        num += SolveQuadric(coeffs3, s2);
 
+        if (n == 0) {
+            s[0] = s2[0];
+            s[1] = s2[1];
+        }
+        else if (n == 1) {
+            s[1] = s2[0];
+            s[2] = s2[1];
+        }
+        else if (n == 2) {
+            s[2] = s2[0];
+            s[3] = s2[1];
+        }
     }
 
     /* resubstitute */
@@ -720,9 +732,52 @@ int SolveQuartic(inout float3 c1, inout float2 c2, inout float4 s) {
     sub = 1.0/4 * A;
 
     for (i = 0; i < num; ++i)
-	s[ i ] -= sub;
+	    s[ i ] -= sub;
 
     return num;
+}
+
+bool intersect_torus(float3 rp, float3 rd, inout float t_intersect) {
+
+    t_intersect = 0;
+
+    float3 center = float3(grid_x, grid_y/2.0, grid_z/2.0);
+
+    // Translate
+    rp = rp - center;
+
+    // Angle of Torus
+    float theta = some_slider;
+
+    float3x3 rotate_mat = {cos(theta), -sin(theta), 0,
+                           sin(theta), cos(theta), 0,
+                           0, 0, 1};
+
+    // Rotate eye vector and eye position
+    rd = mul(rotate_mat, rd);
+    rp = mul(rotate_mat, rp);
+
+    
+    // Torus Config
+    float R = 100;
+    float r = 30;
+
+
+    float c4 = pow((rd.x * rd.x + rd.y * rd.y + rd.z * rd.z), 2);
+    float c3 = 4 * (rd.x * rd.x + rd.y * rd.y + rd.z * rd.z) * (rp.x * rd.x + rp.y * rd.y + rp.z * rd.z);
+    float c2 = 2 * (rd.x * rd.x + rd.y * rd.y + rd.z * rd.z) * (rp.x * rp.x + rp.y * rp.y + rp.z * rp.z - (r * r + R * R)) 
+                + 4 * pow((rp.x * rd.x + rp.y * rd.y + rp.z * rd.z), 2) + 4 * R * R * rd.y * rd.y;
+    float c1 = 4 * (rp.x * rp.x + rp.y * rp.y + rp.z * rp.z - (r * r + R * R)) * (rp.x * rd.x + rp.y * rd.y + rp.z * rd.z) 
+                + 8 * R * R * rp.y * rd.y;
+    float c0 = pow((rp.x * rp.x + rp.y * rp.y + rp.z * rp.z - (r * r + R * R)), 2) - 4 * R * R * (r * r - rp.y * rp.y);
+
+    float3 v3 = float3(c0, c1, c2);
+    float2 v2 = float2(c3, c4);
+    float4 v4 = float4(0,0,0,0);
+    int n = SolveQuartic(v3, v2, v4);
+
+    if (n > 0) return true;
+    else return false;
 }
 
 
@@ -748,11 +803,9 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
     bool in_volume = false;
 
-    float3 v3 = float3(1.0, -7.0, 5.0);
-    float2 v2 = float2(31.0, -30.0);
-    float4 v4 = float4(0.0, 0.0, 0.0, 0.0);
-    int nn = SolveQuartic(v3, v2, v4);
-    if (nn == 4) return float3(0,0,0);
+    float tmp = 0;
+    if (intersect_torus(rp, rd, tmp)) return float3(1,0,0);
+    else return float3(0,0,0);
 
     for (int n = 0; n < nBounces; n++) {
 
