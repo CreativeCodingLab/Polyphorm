@@ -700,7 +700,7 @@ int main(int argc, char **argv)
     rendering_config.shininess = 64;
 
     // Compute sigma_a and sigma_s for each of RGB
-    rendering_config.sigma_t_rgb = 0.4;
+    rendering_config.sigma_t_rgb = 0.8;
     rendering_config.albedo_r = 0.92;
     rendering_config.albedo_g = 0.88;
     rendering_config.albedo_b = 0.05;
@@ -1524,7 +1524,7 @@ int main(int argc, char **argv)
 
                 // Some slider for debug
                 float some_slider = rendering_config.some_slider;
-                reset_pt |= ui::add_slider(&panel, "some_slider", &some_slider, 0.0, 4.0);
+                reset_pt |= ui::add_slider(&panel, "some_slider", &some_slider, 0.0, 1.0);
                 rendering_config.some_slider = some_slider;
 
                 float expo = log(rendering_config.exposure) / log(10.0);

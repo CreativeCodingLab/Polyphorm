@@ -737,17 +737,111 @@ int SolveQuartic(inout float3 c1, inout float2 c2, inout float4 s) {
     return num;
 }
 
-bool intersect_torus(float3 rp, float3 rd, inout float t_intersect) {
+void swap(inout float t1, inout float t2) {
+    float tmp = t1;
+    t1 = t2;
+    t2 = tmp;
+}
 
-    t_intersect = 0;
+bool box_intersection(float3 bb_min, float3 bb_max, float3 rp, float3 rd) {
+    float tmin = (bb_min.x - rp.x) / rd.x; 
+    float tmax = (bb_max.x - rp.x) / rd.x; 
+ 
+    if (tmin > tmax) swap(tmin, tmax);
 
-    float3 center = float3(grid_x, grid_y/2.0, grid_z/2.0);
+    float tymin = (bb_min.y - rp.y) / rd.y; 
+    float tymax = (bb_max.y - rp.y) / rd.y; 
+ 
+    if (tymin > tymax) swap(tymin, tymax); 
+ 
+    if ((tmin > tymax) || (tymin > tmax)) 
+        return false; 
+ 
+    if (tymin > tmin) 
+        tmin = tymin; 
+ 
+    if (tymax < tmax) 
+        tmax = tymax; 
+ 
+    float tzmin = (bb_min.z - rp.z) / rd.z; 
+    float tzmax = (bb_max.z - rp.z) / rd.z; 
+ 
+    if (tzmin > tzmax) swap(tzmin, tzmax); 
+ 
+    if ((tmin > tzmax) || (tzmin > tmax)) 
+        return false; 
+ 
+    if (tzmin > tmin) 
+        tmin = tzmin; 
+ 
+    if (tzmax < tmax) 
+        tmax = tzmax; 
+ 
+    return true; 
+}
+
+bool intersect_plane(float3 bb_min, float3 bb_max, float3 rp, float3 rd) {
+
+    float3 center = float3(-1 * grid_x, grid_y/2.0, grid_z/2.0);
 
     // Translate
     rp = rp - center;
 
     // Angle of Torus
-    float theta = some_slider;
+    float theta = PI / 2;
+
+    float tmin = (bb_min.x - rp.x) / rd.x; 
+    float tmax = (bb_max.x - rp.x) / rd.x; 
+ 
+    if (tmin > tmax) swap(tmin, tmax);
+
+    float tymin = (bb_min.y - rp.y) / rd.y; 
+    float tymax = (bb_max.y - rp.y) / rd.y; 
+ 
+    if (tymin > tymax) swap(tymin, tymax); 
+ 
+    if ((tmin > tymax) || (tymin > tmax)) 
+        return false; 
+ 
+    if (tymin > tmin) 
+        tmin = tymin; 
+ 
+    if (tymax < tmax) 
+        tmax = tymax; 
+ 
+    float tzmin = (bb_min.z - rp.z) / rd.z; 
+    float tzmax = (bb_max.z - rp.z) / rd.z; 
+ 
+    if (tzmin > tzmax) swap(tzmin, tzmax); 
+ 
+    if ((tmin > tzmax) || (tzmin > tmax)) 
+        return false; 
+ 
+    if (tzmin > tmin) 
+        tmin = tzmin; 
+ 
+    if (tzmax < tmax) 
+        tmax = tzmax; 
+ 
+    return true; 
+}
+
+bool intersect_torus(float3 rp, float3 rd) {
+
+    float3 center = float3(2 * grid_x, grid_y/2.0, grid_z/2.0);
+    
+    // Torus Config
+    float R = 100;
+    float r = 30;
+
+    float3 bb_max = R+r;
+    float3 bb_min = -R-r;
+
+    // Translate
+    rp = rp - center;
+
+    // Angle of Torus
+    float theta = PI / 2.5;
 
     float3x3 rotate_mat = {cos(theta), -sin(theta), 0,
                            sin(theta), cos(theta), 0,
@@ -757,11 +851,7 @@ bool intersect_torus(float3 rp, float3 rd, inout float t_intersect) {
     rd = mul(rotate_mat, rd);
     rp = mul(rotate_mat, rp);
 
-    
-    // Torus Config
-    float R = 100;
-    float r = 30;
-
+    if(!box_intersection(bb_min, bb_max, rp, rd)) return false;
 
     float c4 = pow((rd.x * rd.x + rd.y * rd.y + rd.z * rd.z), 2);
     float c3 = 4 * (rd.x * rd.x + rd.y * rd.y + rd.z * rd.z) * (rp.x * rd.x + rp.y * rd.y + rp.z * rd.z);
@@ -803,18 +893,20 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
     bool in_volume = false;
 
-    float tmp = 0;
-    if (intersect_torus(rp, rd, tmp)) return float3(1,0,0);
-    else return float3(0,0,0);
-
+    int bounce_n = 0;
     for (int n = 0; n < nBounces; n++) {
+
+        if (bounce_n != 0) {
+            if (intersect_torus(rp, rd)) return L + throughput_rgb * get_sky_L(rd);
+            if (intersect_plane(float3(0, -100, -100), float3(0, 100, 100), rp, rd)) return L + throughput_rgb * get_sky_L(rd) * 0.2;
+        }
+       
 
         // Sample collision distance
         float2 t = ray_AABB_intersection(rp, rd, c_low, c_high);
         // if (t.x == -1 && t.y == -1) return float3(0,0,0); // ray_AABB_intersection failed
 
         float t_event;
-
         bool hit_surface = false;
         
         #ifdef SPHERE_DEBUG
@@ -841,8 +933,9 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         // If the ray gets out of AABB, return color
         if (t_event >= t.y) {
-            if (n == 0) return float3(0,0,0);
-            else return L + throughput_rgb * get_sky_L(rd);
+            return float3(0,0,0);
+            // if (n == 0) return float3(0,0,0);
+            // else return L + throughput_rgb * get_sky_L(rd);
         }
 
         // Move to the next intersection
@@ -901,6 +994,8 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         #else
         throughput_rgb *= albedo_rgb;
         #endif
+
+        bounce_n++;
     }
     return float3(0,0,0);;
 }
