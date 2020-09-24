@@ -87,7 +87,7 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
 *Polyphorm* has been instrumental in the following scientific results.
 
 - [Polyphorm: Structural Analysis of Cosmological Datasets via Interactive Physarum Polycephalum Visualization](https://arxiv.org/abs/2009.02441) (ArXiv, September 2020; to be presented at IEEE VIS, October 2020)
-<img src="docs/title_vis2020_narrow.png" width="90%" height="90%"><br/>
+<img src="docs/title_vis2020_narrow.png" width="82%" height="82%"><br/>
   This paper presents the *Polyphorm* software in full extent: detailed account of the tasks driving our design decisions, exposition of the MCPM model, and concise explanation of the astronomical use cases (which are also reviewed below).
 
 - [Revealing the Dark Threads of the Cosmic Web](https://cgg.mff.cuni.cz/~oskar/research.html#BurchettElek2020) (Astrophysical Journal Letters, March 2020)<br/>
