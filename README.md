@@ -9,13 +9,13 @@
 
 You can see *Polyphorm* in action in the **following video**. A selection of more videos demonstrating the software in different reconstruction and visualization scenarios is available [here](https://docs.google.com/document/d/1V858oljGT1gu-gTVMAZOqtZjFEtK_rULsCg_VDeXulk/edit?usp=sharing).
 
-[![](docs/title_vis2020.png)](http://www.youtube.com/watch?v=ceNGfSOOzDY "Polyphorm overview")
+[![](docs/title_vis2020_play.png)](http://www.youtube.com/watch?v=ceNGfSOOzDY "Polyphorm overview")
 
 ## System Requirements
-- Windows OS (tested on 10)
 - Decent GPU, especially in terms of available VRAM (**minimum 2GB, recommended 4GB**; tested on NVIDIA TitanX 12GB, RTX Titan 24GB, RTX 2070 Mobile 8GB)
-- [Visual Studio](https://visualstudio.microsoft.com/downloads) (tested on 2017 or 2019, might be adapted to older versions)
+- Windows OS (tested on 10)
 - DirectX 11 installed on system
+- [Visual Studio](https://visualstudio.microsoft.com/downloads) (tested on 2017 or 2019, might be adapted to older versions)
 - [DirectXTex library](https://github.com/Microsoft/DirectXTex) (must be built using one of the provided .sln files)
 
 ## Installation Instructions
