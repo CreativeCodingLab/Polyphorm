@@ -14,11 +14,11 @@ You can see *Polyphorm* in action in the **following video**. A selection of mor
 ## System Requirements
 - Windows OS (tested on 10)
 - Decent GPU, especially in terms of available VRAM (**minimum 2GB, recommended 4GB**; tested on NVIDIA TitanX 12GB, RTX Titan 24GB, RTX 2070 Mobile 8GB)
-- Visual Studio (tested on 2017 or 2019, might be adapted to older versions)
+- [Visual Studio](https://visualstudio.microsoft.com/downloads) (tested on 2017 or 2019, might be adapted to older versions)
 - DirectX 11 installed on system
-- ![DirectXTex library](https://github.com/Microsoft/DirectXTex) (must be built using one of the provided .sln files)
+- [DirectXTex library](https://github.com/Microsoft/DirectXTex) (must be built using one of the provided .sln files)
 
-## Build Instructions
+## Installation Instructions
 - Clone the repo
 - Setup build tool (**./builder/**)
   - Make sure that the paths in **build.bat** point to existing **vcvarsall.bat** (depends on your VS installation version, usually somewhere in Program Files)
@@ -111,4 +111,4 @@ Immediately upon launching, *Polyphorm* starts fitting to the input data. The st
 As well as one (simulated) protista:
 - [Physarum polycephalum](https://en.wikipedia.org/wiki/Physarum_polycephalum) - taught us spatial navigation and foraging
 
-Many thanks also belong to other humans: Sage Jenson (for a major inception), Jeff Jones (for writing that great paper), Daisuke Nagai (for numerous ideas and insights), Sebastian Herholz (for all the Monte Carlo lore), Jaroslav Křivánek (for an awesome ride).
+Many thanks also belong to other humans: Sage Jenson (for a major inception), Jeff Jones (for writing that great paper), Daisuke Nagai (for numerous ideas and insights), Sebastian Herholz and Jaroslav Křivánek (for all the Monte Carlo lore).
