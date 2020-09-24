@@ -16,7 +16,7 @@ You can see *Polyphorm* in action in the **following video**. A selection of mor
 - Windows OS (tested on 10)
 - DirectX 11 installed on system
 - [Visual Studio](https://visualstudio.microsoft.com/downloads) (tested on 2017 or 2019, might be adapted to older versions)
-- [DirectXTex library](https://github.com/Microsoft/DirectXTex) (must be built using one of the provided .sln files)
+- [DirectXTex library](https://github.com/Microsoft/DirectXTex) (must be built in the Release mode using one of the provided .sln files)
 
 ## Installation Instructions
 - Clone the repo
@@ -26,7 +26,7 @@ You can see *Polyphorm* in action in the **following video**. A selection of mor
 - Check that **polyphorm.build** points to the correct directories (especially wrt. the DirectXTex library installation)
 - Run `build run polyphorm.build --release` from the root (the build process will produce a short log - if not then something went wrong, make sure that all the paths are configured correctly and the required dependencies exist)
 
-Troubleshooting checklist: 1) system requirements all met; 2) DirectXTex library built; 3) paths in build.bat and polyphorm.build point to existing valid folders; 4) there's enough video memory available (if not, decrease 'Grid Resolution' in the config.polyp file).
+Troubleshooting checklist: 1] system requirements all met; 2] DirectXTex library successfully built (in Release mode); 3] paths in build.bat and polyphorm.build point to existing valid folders; 4] there's enough video memory available (if not, decrease 'Grid Resolution' in the config.polyp file).
 
 ## Quick Manual
 The software is launched simply by running **./bin/polyphorm.exe**. The **./bin/config.polyp** file holds most of the settings. The supplied sample dataset is a corpus of 37.6k galaxies from the SDSS catalog described in *Burchett et al. 2020: Mapping the Dark Threads of the Cosmic Web*. The dataset can be changed in the preamble of **main.cpp** (will be freely configurable later).
