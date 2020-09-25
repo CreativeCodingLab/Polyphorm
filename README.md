@@ -15,11 +15,15 @@ You can see *Polyphorm* in action in the **following video**. A selection of mor
 - Decent GPU, especially in terms of available VRAM (**minimum 2GB, recommended 4GB**; tested on NVIDIA TitanX 12GB, RTX Titan 24GB, RTX 2070 Mobile 8GB)
 - Windows OS (tested on 10)
 - DirectX 11 installed on system
-- [Visual Studio](https://visualstudio.microsoft.com/downloads) (tested on 2017 or 2019, might be adapted to older versions)
-- [DirectXTex library](https://github.com/Microsoft/DirectXTex) (must be built in the Release mode using one of the provided .sln files)
+- [Visual Studio](https://visualstudio.microsoft.com/downloads) (tested on 2017 or 2019, probably might be adapted to older versions)
+- [Visual Studio Build Tools](https://devblogs.microsoft.com/cppblog/introducing-the-visual-studio-build-tools/) installed (can simply be selected during the VS install process, or alternatively, installed separately)
 
 ## Installation Instructions
-- Clone the repo
+- Clone the [DirectXTex repository](https://github.com/Microsoft/DirectXTex)
+- Build the DirectX Tex library
+  - Open one of the premade **.sln** files (corresponding to your platform), select the 'Release' build configuration, and build the solution
+  - If the build doesn't go through, make sure you have [VS Build Tools](https://devblogs.microsoft.com/cppblog/introducing-the-visual-studio-build-tools/) installed (v141 for VS 2017, and v142 for VS 2019)
+- Clone the *Polyphorm* repository
 - Setup build tool (**./builder/**)
   - Make sure that the paths in **build.bat** point to existing **vcvarsall.bat** (depends on your VS installation version, usually somewhere in Program Files)
   - Add the absolute path to **./builder/bin/** into the PATH environment variable
