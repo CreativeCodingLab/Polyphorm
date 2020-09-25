@@ -12,7 +12,7 @@ You can see *Polyphorm* in action in the **following video**. A selection of mor
 [![](docs/title_vis2020_play.png)](http://www.youtube.com/watch?v=ceNGfSOOzDY "Polyphorm overview")
 
 ## System Requirements
-- Decent GPU, especially in terms of available VRAM (**minimum 2GB, recommended 4GB**; tested on NVIDIA TitanX 12GB, RTX Titan 24GB, RTX 2070 Mobile 8GB)
+- Decent GPU, especially in terms of available VRAM (**minimum 2GB, recommended 4GB**; tested on NVIDIA TitanX 12GB, RTX Titan 24GB, RTX 2070 Mobile 8GB, AMD Radeon RX5500 8GB)
 - Windows OS (tested on 10)
 - DirectX 11 installed on system
 - [Visual Studio](https://visualstudio.microsoft.com/downloads) (tested on 2017 or 2019, probably might be adapted to older versions)
@@ -48,7 +48,7 @@ Most of *Polyphorm*'s controls are a part of the UI, including changing the visu
 
 ### Simulation
 <img src="docs/energy.png" align="right">
-Immediately upon launching, *Polyphorm* starts fitting to the input data. The state of the fitting is captured in the red energy plot: the higher the energy value, the more are the simulation agents aligned with the input data. The spatio-temporal agent density is captured in the green histogram: healthy fits typically have a bell-shaped log-density distribution with a slight positive skew.
+Immediately upon launching, Polyphorm starts fitting to the input data. The state of the fitting is captured in the red energy plot: the higher the energy value, the more are the simulation agents aligned with the input data. The spatio-temporal agent density is captured in the green histogram: healthy fits typically have a bell-shaped log-density distribution with a slight positive skew.
 
 ### Visualization
 *Polyphorm* supports multiple visualization modalities to facilitate the analysis of the reconstructed Cosmic web estimate.
