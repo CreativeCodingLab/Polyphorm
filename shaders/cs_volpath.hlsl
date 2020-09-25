@@ -39,6 +39,9 @@ SamplerState tex_palette_trace_sampler : register(s3);
 Texture2D tex_palette_data : register(t4);
 SamplerState tex_palette_data_sampler : register(s4);
 
+Texture2D tex_nature_hdri : register(t5);
+SamplerState tex_nature_hdri_sampler : register(s5);
+
 cbuffer ConfigBuffer : register(b4)
 {
     float4x4 projection_matrix;
@@ -346,9 +349,13 @@ bool solveQuadratic(float a, float b, float c, inout float x0, inout float x1) {
 // DEBUG: Sphere Material Test
 bool intersect_sphere(float3 rp, float3 rd, inout float t_intersect) {
     
-    // Sphere Config
-    float3 center = float3(grid_x/2.0, grid_y/2.0 + sphere_pos, grid_z/2.0);
-    float radius = grid_x / 10.0;
+    // Sphere Config for debug
+    // float3 center = float3(grid_x/2.0, grid_y/2.0 + sphere_pos, grid_z/2.0);
+    // float radius = grid_x / 10.0;
+
+    // Sphere for hdri
+    float3 center = float3(grid_x/2.0, grid_y/2.0, grid_z/2.0);
+    float radius = 2 * grid_x;
 
 
     float3 L = rp - center;
@@ -828,11 +835,11 @@ bool intersect_plane(float3 bb_min, float3 bb_max, float3 rp, float3 rd) {
 
 bool intersect_torus(float3 rp, float3 rd) {
 
-    float3 center = float3(2 * grid_x, grid_y/2.0, grid_z/2.0);
+    float3 center = float3(1.5 * grid_x, grid_y/2.0, grid_z/2.0);
     
     // Torus Config
-    float R = 100;
-    float r = 30;
+    float R = 150;
+    float r = 20;
 
     float3 bb_max = R+r;
     float3 bb_min = -R-r;
@@ -841,7 +848,8 @@ bool intersect_torus(float3 rp, float3 rd) {
     rp = rp - center;
 
     // Angle of Torus
-    float theta = PI / 2.5;
+    // PI/2 is parallel to slime mold
+    float theta = PI / 1.6; 
 
     float3x3 rotate_mat = {cos(theta), -sin(theta), 0,
                            sin(theta), cos(theta), 0,
@@ -868,6 +876,56 @@ bool intersect_torus(float3 rp, float3 rd) {
 
     if (n > 0) return true;
     else return false;
+}
+
+float3 calc_ambient_color(float3 rp, float3 rd) {
+
+    // Sphere for hdri
+    float3 center = float3(grid_x/2.0, grid_y/2.0, grid_z/2.0);
+    float radius = 5 * grid_x;
+
+
+    rp = rp - center;
+
+    float theta = -PI / 2; 
+    float3x3 rotate_mat = {1, 0, 0,
+                           0, cos(theta), -sin(theta),
+                           0, sin(theta), cos(theta)};
+
+    // Rotate eye vector and eye position
+    rd = mul(rotate_mat, rd);
+    rp = mul(rotate_mat, rp);
+
+
+    float3 L = rp;
+    float a = dot(rd, rd);
+    float b = 2 * dot(rd, L);
+    float c = dot(L, L) - radius * radius;
+    float t0, t1;
+    if (!solveQuadratic(a, b, c, t0, t1)) return float3(0, 0, 0);
+    t0 = t1;
+    if (t0 < 0) {
+        t0 = t1;
+        return float3(0, 0, 0);
+    }
+
+    // point on sphere
+    float3 sp = rp + rd * t0;
+
+    // float phi = atan2(sp.z, sp.x);
+    // float theta = asin(sp.y);
+    // float u = 1 - (phi + M_PI) / (2 * M_PI);
+    // float v = (theta + M_PI / 2) / M_PI;
+
+
+    float u = 0.5f + atan2(sp.x, sp.z) / (2 * M_PI);
+    float v = 0.5f + asin(sp.y / radius) / M_PI;
+
+    return tex_nature_hdri.SampleLevel(tex_nature_hdri_sampler, float2(u, v), 0).rgb;
+
+
+    return float3(1, 1, 1);
+
 }
 
 
@@ -933,7 +991,9 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         // If the ray gets out of AABB, return color
         if (t_event >= t.y) {
-            return float3(0,0,0);
+            float3 ambient_light = calc_ambient_color(rp, rd);
+            return L + throughput_rgb * ambient_light;
+            //return float3(0,0,0);
             // if (n == 0) return float3(0,0,0);
             // else return L + throughput_rgb * get_sky_L(rd);
         }
@@ -945,7 +1005,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         // If a ray hits a surface and get inside.
         if (in_volume && hit_surface) {
 
-            // float reflect_chance = fresnel(rp, rd);
+            float reflect_chance = fresnel(rp, rd);
 
             // Calculate Light Contribution
             float3 ld = normalize(lp - rp); // surface to light
@@ -960,7 +1020,13 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
                 specular_factor = pow(specular_factor, shininess);
 
-                if (rng.random_float() < specular_factor) {
+                // Reflect 
+                if (rng.random_float() < reflect_chance) {
+                    rd = reflect(rp, rd);
+                }
+
+                // if (rng.random_float() < specular_factor) {
+                if (0) {    // Just reflect, don't explicitely calculate specular
 
                     float intensity = 1.0f;
                     int light_exposure = 5;   

@@ -516,6 +516,10 @@ int main(int argc, char **argv)
     TextureSampler tex_sampler_deposit = graphics::get_texture_sampler(CLAMP, D3D11_FILTER_ANISOTROPIC);
     TextureSampler tex_sampler_display = graphics::get_texture_sampler();
     TextureSampler tex_sampler_color_palette = graphics::get_texture_sampler();
+
+    // HDRI Image for Vol Path Rendering
+    Texture2D nature_hdri_tex =graphics::load_texture2D("textures/nature.tga");
+    TextureSampler tex_sampler_nature_hdri = graphics::get_texture_sampler();
     
 	graphics::set_blend_state(BlendType::ALPHA);
 
@@ -683,7 +687,7 @@ int main(int argc, char **argv)
     rendering_config.pt_iteration = 0;
     rendering_config.sigma_s = 0.0;
     rendering_config.sigma_a = 0.5;
-    rendering_config.sigma_e = 2.0;
+    rendering_config.sigma_e = 4.0;
     rendering_config.trace_max = 100.0;
     rendering_config.camera_offset_x = 0.0;
     rendering_config.camera_offset_y = 0.0;
@@ -700,10 +704,10 @@ int main(int argc, char **argv)
     rendering_config.shininess = 64;
 
     // Compute sigma_a and sigma_s for each of RGB
-    rendering_config.sigma_t_rgb = 0.8;
-    rendering_config.albedo_r = 0.92;
-    rendering_config.albedo_g = 0.88;
-    rendering_config.albedo_b = 0.05;
+    rendering_config.sigma_t_rgb = 0.85;
+    rendering_config.albedo_r = 0.92;   // 0.92
+    rendering_config.albedo_g = 0.88;   // 0.88
+    rendering_config.albedo_b = 0.05;   // 0.05
     rendering_config.some_slider = 0;
 
     rendering_config.sigma1_a_r = (1 - rendering_config.albedo_r) * rendering_config.sigma_t_rgb;
@@ -782,7 +786,7 @@ int main(int argc, char **argv)
     float background_color = 0.0;
     VisualizationMode vis_mode = VisualizationMode::VM_PARTICLES;
 
-    bool smooth_trail = true;
+    bool smooth_trail = false;
 
     // Update simulation config
     graphics::update_constant_buffer(&config_buffer, &simulation_config);
@@ -1179,6 +1183,10 @@ int main(int argc, char **argv)
                     rendering_config.pt_iteration = 0;
                 }
                 graphics::update_constant_buffer(&rendering_settings_buffer, &rendering_config);
+                // Nature HDRI Texture
+                graphics::set_texture_sampled_compute(&nature_hdri_tex, 5);
+                graphics::set_texture_sampler_compute(&tex_sampler_nature_hdri, 5);
+                
                 if (run_pt && rendering_config.pt_iteration < 1e5) {
                     graphics::set_compute_shader(&cs_volpath);
                     graphics::set_texture_compute(&display_tex, 0);
@@ -1194,6 +1202,8 @@ int main(int argc, char **argv)
                     graphics::set_texture_sampler_compute(&tex_sampler_color_palette, 3);
                     graphics::set_texture_sampled_compute(&palette_data_tex, 4);
                     graphics::set_texture_sampler_compute(&tex_sampler_color_palette, 4);
+
+
                     graphics::run_compute(
                         rendering_config.screen_width / int(PT_GROUP_SIZE_X),
                         rendering_config.screen_height / int(PT_GROUP_SIZE_Y),
@@ -1211,6 +1221,7 @@ int main(int argc, char **argv)
                 graphics::set_texture_sampler(&tex_sampler_display, 0);
                 graphics::draw_mesh(&quad_mesh);
                 graphics::unset_texture(0);
+                graphics::unset_texture(5);
             }
         }
 
