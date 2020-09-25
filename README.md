@@ -20,11 +20,11 @@ You can see *Polyphorm* in action in the **following video**. A selection of mor
 
 ## Installation Instructions
 - Clone the [DirectXTex repository](https://github.com/Microsoft/DirectXTex)
-- Build the DirectX Tex library
+- Build the DirectXTex library
   - Open one of the premade **.sln** files (corresponding to your platform), select the 'Release' build configuration, and build the solution
   - If the build doesn't go through, make sure you have [VS Build Tools](https://devblogs.microsoft.com/cppblog/introducing-the-visual-studio-build-tools/) installed (v141 for VS 2017, and v142 for VS 2019)
 - Clone the *Polyphorm* repository
-- Setup build tool (**./builder/**)
+- Setup the bundled build tool (**./builder/**)
   - Make sure that the paths in **build.bat** point to existing **vcvarsall.bat** (depends on your VS installation version, usually somewhere in Program Files)
   - Add the absolute path to **./builder/bin/** into the PATH environment variable
 - Check that **polyphorm.build** points to the correct directories (especially wrt. the DirectXTex library installation)
