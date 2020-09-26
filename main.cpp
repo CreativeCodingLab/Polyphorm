@@ -692,7 +692,7 @@ int main(int argc, char **argv)
     rendering_config.camera_offset_x = 0.0;
     rendering_config.camera_offset_y = 0.0;
     rendering_config.exposure = 1.0;
-    rendering_config.n_bounces = 30;
+    rendering_config.n_bounces = 30;    // 30
     rendering_config.ambient_trace = 0.0;
     rendering_config.compressive_accumulation = 0;
     rendering_config.guiding_strength = 0.1;
@@ -704,9 +704,9 @@ int main(int argc, char **argv)
     rendering_config.shininess = 64;
 
     // Compute sigma_a and sigma_s for each of RGB
-    rendering_config.sigma_t_rgb = 0.85;
-    rendering_config.albedo_r = 0.92;   // 0.92
-    rendering_config.albedo_g = 0.88;   // 0.88
+    rendering_config.sigma_t_rgb = 0.5;
+    rendering_config.albedo_r = 0.8;   // 0.92
+    rendering_config.albedo_g = 0.7;   // 0.88
     rendering_config.albedo_b = 0.05;   // 0.05
     rendering_config.some_slider = 0;
 
@@ -786,7 +786,7 @@ int main(int argc, char **argv)
     float background_color = 0.0;
     VisualizationMode vis_mode = VisualizationMode::VM_PARTICLES;
 
-    bool smooth_trail = false;
+    bool smooth_trail = true;
 
     // Update simulation config
     graphics::update_constant_buffer(&config_buffer, &simulation_config);

@@ -280,7 +280,7 @@ float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, f
             hit_surface = true;
             break;
         }
-	} while (t <= t_max && rng.random_float() > 0.99 * rho_max_inv); 
+	} while (t <= t_max && rng.random_float() > 1 * rho_max_inv); 
 
 	return t;
 }
@@ -350,13 +350,8 @@ bool solveQuadratic(float a, float b, float c, inout float x0, inout float x1) {
 bool intersect_sphere(float3 rp, float3 rd, inout float t_intersect) {
     
     // Sphere Config for debug
-    // float3 center = float3(grid_x/2.0, grid_y/2.0 + sphere_pos, grid_z/2.0);
-    // float radius = grid_x / 10.0;
-
-    // Sphere for hdri
-    float3 center = float3(grid_x/2.0, grid_y/2.0, grid_z/2.0);
-    float radius = 2 * grid_x;
-
+    float3 center = float3(grid_x/2.0, grid_y/2.0 + sphere_pos, grid_z/2.0);
+    float radius = grid_x / 10.0;
 
     float3 L = rp - center;
     float a = dot(rd, rd);
@@ -835,11 +830,11 @@ bool intersect_plane(float3 bb_min, float3 bb_max, float3 rp, float3 rd) {
 
 bool intersect_torus(float3 rp, float3 rd) {
 
-    float3 center = float3(1.5 * grid_x, grid_y/2.0, grid_z/2.0);
+    float3 center = float3(3 * grid_x, grid_y/2.0, grid_z/2.0);
     
     // Torus Config
-    float R = 150;
-    float r = 20;
+    float R = 50;
+    float r = 10;
 
     float3 bb_max = R+r;
     float3 bb_min = -R-r;
@@ -953,11 +948,6 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
     int bounce_n = 0;
     for (int n = 0; n < nBounces; n++) {
-
-        if (bounce_n != 0) {
-            if (intersect_torus(rp, rd)) return L + throughput_rgb * get_sky_L(rd);
-            if (intersect_plane(float3(0, -100, -100), float3(0, 100, 100), rp, rd)) return L + throughput_rgb * get_sky_L(rd) * 0.2;
-        }
        
 
         // Sample collision distance
@@ -966,34 +956,43 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         float t_event;
         bool hit_surface = false;
-        
+
+        // // Since light raytracing and volume raytracing are independent, peform light tracing only when out-volume mode
+        // if (bounce_n != -1 && !in_volume) {
+        //     if (intersect_torus(rp, rd)) {
+        //         return float3(1,0,0);
+        //         return L + throughput_rgb * float3(1,1,1) * 10;
+        //     }
+        //     if (intersect_plane(float3(0, -100, -100), float3(0, 100, 100), rp, rd)) return L + throughput_rgb * float3(1,1,1) * 3.0 * 0;
+        // }
+
         #ifdef SPHERE_DEBUG
         if (in_volume) {
             t_event = sphere_tracking_in_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
-            if (hit_surface) in_volume = false;
         }
         else {
             t_event = sphere_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
-            if (hit_surface) in_volume = true;
         }
         #else
         if (in_volume) {
             t_event = delta_tracking_in_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
-            if (hit_surface) in_volume = false;
-            // if (hit_surface) return float3(0,1,0);
-            // else return float3(0,0,1);
         }
         else {
             t_event = delta_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
-            if (hit_surface) in_volume = true;
         }
         #endif
 
         // If the ray gets out of AABB, return color
         if (t_event >= t.y) {
-            float3 ambient_light = calc_ambient_color(rp, rd);
-            return L + throughput_rgb * ambient_light;
-            //return float3(0,0,0);
+
+            // Render HDRI as a texture
+            if (bounce_n == 0) {
+                return calc_ambient_color(rp, rd) * 3;
+                return float3(0,0,0);
+            }
+            // Render HDRI as a light
+            return L + throughput_rgb * calc_ambient_color(rp, rd) * 20;
+            return float3(0,0,0);
             // if (n == 0) return float3(0,0,0);
             // else return L + throughput_rgb * get_sky_L(rd);
         }
@@ -1003,8 +1002,9 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         #ifdef POINT_LIGHT
         // If a ray hits a surface and get inside.
-        if (in_volume && hit_surface) {
+        if (hit_surface) {
 
+            // frenels()
             float reflect_chance = fresnel(rp, rd);
 
             // Calculate Light Contribution
@@ -1015,38 +1015,65 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
             float3 light_reflect = reflect(rp, ld);  // surface to reflected light
             float specular_factor = dot(normalize(rd), normalize(light_reflect)); 
 
+            specular_factor = pow(specular_factor, shininess);
+
             // Calculate specular light contribution with the probability of specular_factor
+            //if (1<0){
             if (specular_factor > 0) {
 
-                specular_factor = pow(specular_factor, shininess);
-
                 // Reflect 
-                if (rng.random_float() < reflect_chance) {
+                if (rng.random_float() < specular_factor) {
                     rd = reflect(rp, rd);
+                }
+                else {
+                    throughput_rgb = throughput_rgb;
+                    in_volume = !in_volume;
+                    //rd = sample_HG(rd, scattering_anisotropy, rng);
+                    throughput_rgb *= albedo_rgb;
                 }
 
                 // if (rng.random_float() < specular_factor) {
-                if (0) {    // Just reflect, don't explicitely calculate specular
+                // //if (0) {    // Just reflect, don't explicitely calculate specular
 
-                    float intensity = 1.0f;
-                    int light_exposure = 5;   
+                //     float intensity = 1.0f;
+                //     int light_exposure = 5;   
 
-                    float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
-                    return throughput_rgb * specular_color * transmittance / specular_factor;
-                }
-                else {
-                    throughput_rgb = throughput_rgb / (1 - specular_factor);
-                }
+                //     float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
+                //     return throughput_rgb * specular_color * transmittance / specular_factor;
+                // }
+                // else {
+                //     in_volume = !in_volume;
+                //     throughput_rgb = throughput_rgb / (1 - specular_factor);
+                //     throughput_rgb *= albedo_rgb;
+                // }
+            }
+            else{
+                //return float3(100,0,0);
+                in_volume = !in_volume;
+                throughput_rgb *= albedo_rgb;
             }
         }
-        rd = sample_HG(rd, scattering_anisotropy, rng);
+        else {
+            //return float3(100,0,0);
+            throughput_rgb *= albedo_rgb;
+            rd = sample_HG(rd, scattering_anisotropy, rng);
+        }
         #else
-        rd = sample_HG(rd, scattering_anisotropy, rng);
+        //rd = sample_HG(rd, scattering_anisotropy, rng);
         #endif
+
+        // Since light raytracing and volume raytracing are independent, peform light tracing only when out-volume mode
+        if (!in_volume) {
+            if (intersect_torus(rp, rd)) {
+                return L + throughput_rgb * float3(1,1,1) * 5;
+            }
+            //if (intersect_plane(float3(0, -100, -100), float3(0, 100, 100), rp, rd)) return L + throughput_rgb * float3(1,1,1) * 3.0;
+        }
+        
 
         // Adjust the path throughput (RR or modulate)
         #ifdef RUSSIAN_ROULETTE
-        if (n >= 15) {
+        if (n >= 23) {
             // Terminate by 50% chancev after 15 bounces
             float p = 0.5;
             if (rng.random_float() < p) {
@@ -1056,9 +1083,6 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
                 throughput_rgb = throughput_rgb / (1 - p);
             }
         }
-        else throughput_rgb *= albedo_rgb;
-        #else
-        throughput_rgb *= albedo_rgb;
         #endif
 
         bounce_n++;
