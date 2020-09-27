@@ -873,7 +873,7 @@ bool intersect_torus(float3 rp, float3 rd) {
     else return false;
 }
 
-float3 calc_ambient_color(float3 rp, float3 rd) {
+float3 calc_ambient_color(float3 rp, float3 rd, float bokeh, inout RNG rng) {
 
     // Sphere for hdri
     float3 center = float3(grid_x/2.0, grid_y/2.0, grid_z/2.0);
@@ -913,14 +913,33 @@ float3 calc_ambient_color(float3 rp, float3 rd) {
     // float v = (theta + M_PI / 2) / M_PI;
 
 
-    float u = 0.5f + atan2(sp.x, sp.z) / (2 * M_PI);
-    float v = 0.5f + asin(sp.y / radius) / M_PI;
+    float u = 0.5f + atan2(sp.x, sp.z) / (2 * M_PI) + bokeh * 2 * (rng.random_float() - 0.5);
+    float v = 0.5f + asin(sp.y / radius) / M_PI + bokeh * 2 * (rng.random_float() - 0.5);
 
     return tex_nature_hdri.SampleLevel(tex_nature_hdri_sampler, float2(u, v), 0).rgb;
 
 
     return float3(1, 1, 1);
 
+}
+
+// Randomly sample a point on the surface of unit hemisphere
+float3 sample_hemisphere(float3 normal, inout RNG rng) {
+    
+    float3 candidate_vec;
+    
+    while(true) {
+        // Random sampling in (-1,-1,-1), (1,1,1)
+        candidate_vec = 2.0 * float3(rng.random_float(), rng.random_float(), rng.random_float()) - float3(1,1,1);
+        
+        // Good if the sampling point is in an unit sphere
+        if (length(candidate_vec) <= 1.0) break;
+    }
+
+    // Alywas point to the normal direction
+    if (dot(normal, candidate_vec) < 0) candidate_vec = -candidate_vec;
+
+    return normalize(candidate_vec); 
 }
 
 
@@ -987,11 +1006,11 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
             // Render HDRI as a texture
             if (bounce_n == 0) {
-                return calc_ambient_color(rp, rd) * 3;
+                return calc_ambient_color(rp, rd, 0.001, rng) * 3;
                 return float3(0,0,0);
             }
             // Render HDRI as a light
-            return L + throughput_rgb * calc_ambient_color(rp, rd) * 20;
+            return L + throughput_rgb * calc_ambient_color(rp, rd, 0, rng) * 20;
             return float3(0,0,0);
             // if (n == 0) return float3(0,0,0);
             // else return L + throughput_rgb * get_sky_L(rd);
@@ -1004,53 +1023,66 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         // If a ray hits a surface and get inside.
         if (hit_surface) {
 
-            // frenels()
-            float reflect_chance = fresnel(rp, rd);
+            float diffuse_chance = 0.2;
 
-            // Calculate Light Contribution
-            float3 ld = normalize(lp - rp); // surface to light
-            float l_distance = length(ld);
-            float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
-            //float light_contribution = 100.0 * transmittance / max(l_distance * l_distance, 1.0);
-            float3 light_reflect = reflect(rp, ld);  // surface to reflected light
-            float specular_factor = dot(normalize(rd), normalize(light_reflect)); 
+            // DIFFUSE
+            if (rng.random_float() < diffuse_chance) {
+                // Randomly sample diffuse direction
+                rd = sample_hemisphere(get_normal(rp), rng);
+                throughput_rgb *= albedo_rgb;
+            }
+            // REFLECTION OR TRANSPARENCY
+            else {
 
-            specular_factor = pow(specular_factor, shininess);
 
-            // Calculate specular light contribution with the probability of specular_factor
-            //if (1<0){
-            if (specular_factor > 0) {
+                // frenels()
+                float reflect_chance = fresnel(rp, rd);
 
-                // Reflect 
-                if (rng.random_float() < specular_factor) {
-                    rd = reflect(rp, rd);
+                // Calculate Light Contribution
+                float3 ld = normalize(lp - rp); // surface to light
+                float l_distance = length(ld);
+                float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
+                //float light_contribution = 100.0 * transmittance / max(l_distance * l_distance, 1.0);
+                float3 light_reflect = reflect(rp, ld);  // surface to reflected light
+                float specular_factor = dot(normalize(rd), normalize(light_reflect)); 
+
+                specular_factor = pow(specular_factor, shininess);
+
+                // Calculate specular light contribution with the probability of specular_factor
+                //if (1<0){
+                if (specular_factor > 0) {
+
+                    // Reflect 
+                    if (rng.random_float() < specular_factor) {
+                        rd = reflect(rp, rd);
+                    }
+                    else {
+                        throughput_rgb = throughput_rgb;
+                        in_volume = !in_volume;
+                        //rd = sample_HG(rd, scattering_anisotropy, rng);
+                        throughput_rgb *= albedo_rgb;
+                    }
+
+                    // if (rng.random_float() < specular_factor) {
+                    // //if (0) {    // Just reflect, don't explicitely calculate specular
+
+                    //     float intensity = 1.0f;
+                    //     int light_exposure = 5;   
+
+                    //     float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
+                    //     return throughput_rgb * specular_color * transmittance / specular_factor;
+                    // }
+                    // else {
+                    //     in_volume = !in_volume;
+                    //     throughput_rgb = throughput_rgb / (1 - specular_factor);
+                    //     throughput_rgb *= albedo_rgb;
+                    // }
                 }
-                else {
-                    throughput_rgb = throughput_rgb;
+                else{
+                    //return float3(100,0,0);
                     in_volume = !in_volume;
-                    //rd = sample_HG(rd, scattering_anisotropy, rng);
                     throughput_rgb *= albedo_rgb;
                 }
-
-                // if (rng.random_float() < specular_factor) {
-                // //if (0) {    // Just reflect, don't explicitely calculate specular
-
-                //     float intensity = 1.0f;
-                //     int light_exposure = 5;   
-
-                //     float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
-                //     return throughput_rgb * specular_color * transmittance / specular_factor;
-                // }
-                // else {
-                //     in_volume = !in_volume;
-                //     throughput_rgb = throughput_rgb / (1 - specular_factor);
-                //     throughput_rgb *= albedo_rgb;
-                // }
-            }
-            else{
-                //return float3(100,0,0);
-                in_volume = !in_volume;
-                throughput_rgb *= albedo_rgb;
             }
         }
         else {

@@ -61,7 +61,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     // Apply distance-based weighting to prevent overestimation along diagonals
     float v = 0.0;
     float w = 0.0;
-    int half_window_size = 2;
+    int half_window_size = 1;
     for (int dx = -half_window_size; dx <= half_window_size; dx++) {
         for (int dy = -half_window_size; dy <= half_window_size; dy++) {
             for (int dz = -half_window_size; dz <= half_window_size; dz++) {
