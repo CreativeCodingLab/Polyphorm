@@ -13,7 +13,7 @@
 // #define GRADIENT_GUIDING
 
 // Illumination types
-#define WHITESKY_ILLUMINATION
+// #define WHITESKY_ILLUMINATION
 // #define POINT_ILLUMINATION
 #define HALO_ILLUMINATION
 #define TRACE_ILLUMINATION
@@ -192,7 +192,7 @@ float3 get_halo_gradient(float3 rp, float dp) {
 }
 
 float3 get_emitted_trace_L(float rho) {
-    return tex_palette_trace.SampleLevel(tex_palette_trace_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
+    return 0.05 * tex_palette_trace.SampleLevel(tex_palette_trace_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
 }
 
 float3 get_emitted_data_L(float rho) {

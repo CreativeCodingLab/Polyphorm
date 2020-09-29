@@ -34,7 +34,7 @@
 #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
 //#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_huge_t=10.3"
 // #define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
-#define COLOR_PALETTE_TRACE "data/palette_gogh_green.tga"
+#define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
 #define COLOR_PALETTE_DATA "data/palette_hot.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 2.55;
@@ -50,6 +50,7 @@ const float SAMPLING_EXPONENT = 3.5;
 #define DATASET_NAME "data/BP/bpdat_boxDist_trimDist_trimMass_t=0.05_subrate=1_ROTATED"
 // #define COLOR_PALETTE_TRACE "data/palette_sunset2.tga"
 #define COLOR_PALETTE_TRACE "data/palette_gogh_green.tga"
+#define COLOR_PALETTE_DATA "data/palette_hot.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 2.5;
 const float MOVE_ANGLE = 10.0;
@@ -62,11 +63,20 @@ const float SAMPLING_EXPONENT = 3.0;
 #ifdef REGIME_FRB
 #define DATASET_NAME "data/FRB/frb_field_cigaleMass_t=0.0_z=0.01-0.1"
 #define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
+#define COLOR_PALETTE_DATA "data/palette_hot.tga"
+const float SENSE_SPREAD = 20.0;
+const float SENSE_DISTANCE = 5.0;
+const float MOVE_ANGLE = 10.0;
+const float MOVE_DISTANCE = 0.2;
+const float AGENT_DEPOSIT = 0.0;
+const float PERSISTENCE = 0.93;
+const float SAMPLING_EXPONENT = 3.6;
 #endif
 
 #ifdef REGIME_ROCKSTAR
 #define DATASET_NAME "data/MassiveNuS/rockstar_mnv0.10000_om0.30000_As2.1000_out_66t=0.0roi=256.0"
 #define COLOR_PALETTE_TRACE "data/palette_magma.tga"
+#define COLOR_PALETTE_DATA "data/palette_hot.tga"
 #endif
 
 #ifdef REGIME_POISSON
@@ -89,10 +99,11 @@ const float SAMPLING_EXPONENT = 4.5;
 #ifdef REGIME_CONNECTOME
 #define DATASET_NAME "data/Connectome/connectome0_XYZW"
 #define COLOR_PALETTE_TRACE "data/palette_magneto2.tga"
+#define COLOR_PALETTE_DATA "data/palette_hot.tga"
 #endif
 
 #ifdef REGIME_EMBEDDING
-#define DATASET_NAME "data/Embeddings/W2V_UMAP_params_15_n=296630"
+#define DATASET_NAME "data/Embeddings/back_embed_n=18266"
 #define COLOR_PALETTE_TRACE "data/palette_magma.tga"
 #define COLOR_PALETTE_DATA "data/palette_gogh_blue.tga"
 const float SENSE_SPREAD = 20.0;
