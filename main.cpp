@@ -692,11 +692,11 @@ int main(int argc, char **argv)
     rendering_config.camera_offset_x = 0.0;
     rendering_config.camera_offset_y = 0.0;
     rendering_config.exposure = 1.0;
-    rendering_config.n_bounces = 30;    // 30
+    rendering_config.n_bounces = 15;    // 30
     rendering_config.ambient_trace = 0.0;
     rendering_config.compressive_accumulation = 0;
     rendering_config.guiding_strength = 0.1;
-    rendering_config.scattering_anisotropy = 0.9;
+    rendering_config.scattering_anisotropy = 0.5;
 
     rendering_config.slime_ior = 1.45;
     rendering_config.light_pos = 0;

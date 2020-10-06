@@ -152,6 +152,13 @@ float3 uniform_unit_sphere(inout RNG rng) {
 	return result;
 }
 
+void swap(inout float t1, inout float t2) {
+    float tmp = t1;
+    t1 = t2;
+    t2 = tmp;
+}
+
+
 float ray_sphere_intersection(float3 rp, float3 rd, float3 p, float r) {
     float3 os = rp - p;
     float a = dot(rd, rd);
@@ -465,6 +472,25 @@ float3 reflect(float3 rp, float3 rd) {
     return rd - 2 * dot(normalize(rd), n) * n;
 }
 
+// rp is in to the point
+float3 refract(float3 rp, float3 rd) {
+    float3 n = get_normal(rp);
+
+    float cosi = clamp(dot(rd, n), -1, 1);
+    float etai = 1;
+    float etat = slime_ior;
+
+    if (cosi < 0) cosi = -cosi;
+    else {
+        swap(etai, etat);
+        n = -n;
+    }
+
+    float eta = etai / etat;
+    float k = 1 - eta * eta * (1 - cosi * cosi);
+    return k < 0 ? 0 : eta * rd + (eta * cosi - sqrt(k)) * n;
+}
+
 
 
 // return kr: amount of reflected light. thus 1-kr is refracted light
@@ -477,11 +503,7 @@ float fresnel(float3 rp, float3 rd) {
     float etai = 1;
     float etat = slime_ior;
 
-    if (cosi > 0) {
-        float tmp = etai;
-        etai = etat;
-        etat = tmp;
-    }
+    if (cosi > 0) swap(etai, etat);
 
     float sint = etai / etat * sqrt(max(0, 1 - cosi * cosi));
 
@@ -739,12 +761,6 @@ int SolveQuartic(inout float3 c1, inout float2 c2, inout float4 s) {
     return num;
 }
 
-void swap(inout float t1, inout float t2) {
-    float tmp = t1;
-    t1 = t2;
-    t2 = tmp;
-}
-
 bool box_intersection(float3 bb_min, float3 bb_max, float3 rp, float3 rd) {
     float tmin = (bb_min.x - rp.x) / rd.x; 
     float tmax = (bb_max.x - rp.x) / rd.x; 
@@ -830,11 +846,11 @@ bool intersect_plane(float3 bb_min, float3 bb_max, float3 rp, float3 rd) {
 
 bool intersect_torus(float3 rp, float3 rd) {
 
-    float3 center = float3(3 * grid_x, grid_y/2.0, grid_z/2.0);
+    float3 center = float3(1.5 * grid_x, grid_y/2.0, grid_z/2.0);
     
     // Torus Config
-    float R = 50;
-    float r = 10;
+    float R = 300;
+    float r = 5;
 
     float3 bb_max = R+r;
     float3 bb_min = -R-r;
@@ -867,9 +883,9 @@ bool intersect_torus(float3 rp, float3 rd) {
     float3 v3 = float3(c0, c1, c2);
     float2 v2 = float2(c3, c4);
     float4 v4 = float4(0,0,0,0);
-    int n = SolveQuartic(v3, v2, v4);
+    int n = SolveQuartic(v3, v2, v4); 
 
-    if (n > 0) return true;
+    if (n > 0 && v4[0] > 0) return true;
     else return false;
 }
 
@@ -942,6 +958,34 @@ float3 sample_hemisphere(float3 normal, inout RNG rng) {
     return normalize(candidate_vec); 
 }
 
+// rd is the direct reflection direction
+// n controls glossiness
+float3 apply_glossy(float3 rd, float n, inout RNG rng) {
+    
+    float u0 = rng.random_float();
+    float u1 = rng.random_float();
+    
+    float3 t = normalize(rd);
+    float3 w = normalize(float3(abs(rd.x), abs(rd.y), abs(rd.z)));
+    if (w.x < w.y) {
+        if (w.x < w.z) t.x = 1.0f;
+        else t.z = 1.0f;
+    }
+    else if (w.y < w.z) t.y = 1.0f;
+    else t.z = 1.0f;
+    
+    w = normalize(rd);
+    float3 u = normalize(cross(t, w));
+    float3 v = cross(w, u);
+
+    float theta = acos(pow(1.0f - u0, 1.0f / (1.0f + n)));
+    float phi = 2.0f * PI * u1;
+    float3 a = float3(cos(phi)*sin(theta), sin(phi)*sin(theta), cos(theta));
+    float3 R = 0;
+
+    return 0;
+}
+
 
 float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBounces, inout RNG rng) {
     float3 L = float3(0.0, 0.0, 0.0);
@@ -976,15 +1020,6 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         float t_event;
         bool hit_surface = false;
 
-        // // Since light raytracing and volume raytracing are independent, peform light tracing only when out-volume mode
-        // if (bounce_n != -1 && !in_volume) {
-        //     if (intersect_torus(rp, rd)) {
-        //         return float3(1,0,0);
-        //         return L + throughput_rgb * float3(1,1,1) * 10;
-        //     }
-        //     if (intersect_plane(float3(0, -100, -100), float3(0, 100, 100), rp, rd)) return L + throughput_rgb * float3(1,1,1) * 3.0 * 0;
-        // }
-
         #ifdef SPHERE_DEBUG
         if (in_volume) {
             t_event = sphere_tracking_in_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
@@ -1004,13 +1039,15 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         // If the ray gets out of AABB, return color
         if (t_event >= t.y) {
 
+            // return float3(0,0,0);
+
             // Render HDRI as a texture
             if (bounce_n == 0) {
                 return calc_ambient_color(rp, rd, 0.001, rng) * 3;
                 return float3(0,0,0);
             }
             // Render HDRI as a light
-            return L + throughput_rgb * calc_ambient_color(rp, rd, 0, rng) * 20;
+            return L + throughput_rgb * calc_ambient_color(rp, rd, 0, rng) * 5;
             return float3(0,0,0);
             // if (n == 0) return float3(0,0,0);
             // else return L + throughput_rgb * get_sky_L(rd);
@@ -1023,67 +1060,71 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         // If a ray hits a surface and get inside.
         if (hit_surface) {
 
-            float diffuse_chance = 0.2;
+            // frenels()
+            float reflect_chance = fresnel(rp, rd);
 
-            // DIFFUSE
-            if (rng.random_float() < diffuse_chance) {
-                // Randomly sample diffuse direction
-                rd = sample_hemisphere(get_normal(rp), rng);
-                throughput_rgb *= albedo_rgb;
+            // Calculate Light Contribution
+            float3 ld = normalize(lp - rp); // surface to light
+            float l_distance = length(ld);
+            float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
+            //float light_contribution = 100.0 * transmittance / max(l_distance * l_distance, 1.0);
+            float3 light_reflect = reflect(rp, ld);  // surface to reflected light
+            float specular_factor = dot(normalize(rd), normalize(light_reflect)); 
+
+            specular_factor = pow(specular_factor, shininess);
+
+            // REFLECT
+            if (rng.random_float() < reflect_chance) {
+                rd = reflect(rp, rd);
             }
-            // REFLECTION OR TRANSPARENCY
             else {
-
-
-                // frenels()
-                float reflect_chance = fresnel(rp, rd);
-
-                // Calculate Light Contribution
-                float3 ld = normalize(lp - rp); // surface to light
-                float l_distance = length(ld);
-                float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
-                //float light_contribution = 100.0 * transmittance / max(l_distance * l_distance, 1.0);
-                float3 light_reflect = reflect(rp, ld);  // surface to reflected light
-                float specular_factor = dot(normalize(rd), normalize(light_reflect)); 
-
-                specular_factor = pow(specular_factor, shininess);
-
-                // Calculate specular light contribution with the probability of specular_factor
-                //if (1<0){
-                if (specular_factor > 0) {
-
-                    // Reflect 
-                    if (rng.random_float() < specular_factor) {
-                        rd = reflect(rp, rd);
-                    }
-                    else {
-                        throughput_rgb = throughput_rgb;
-                        in_volume = !in_volume;
-                        //rd = sample_HG(rd, scattering_anisotropy, rng);
-                        throughput_rgb *= albedo_rgb;
-                    }
-
-                    // if (rng.random_float() < specular_factor) {
-                    // //if (0) {    // Just reflect, don't explicitely calculate specular
-
-                    //     float intensity = 1.0f;
-                    //     int light_exposure = 5;   
-
-                    //     float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
-                    //     return throughput_rgb * specular_color * transmittance / specular_factor;
-                    // }
-                    // else {
-                    //     in_volume = !in_volume;
-                    //     throughput_rgb = throughput_rgb / (1 - specular_factor);
-                    //     throughput_rgb *= albedo_rgb;
-                    // }
+                float3 refract_dir = refract(rp, rd);
+                if (refract_dir.x == 0 && refract_dir.y == 0 && refract_dir.z == 0) {
+                    rd = reflect(rp, rd);
                 }
-                else{
-                    //return float3(100,0,0);
+                else {
+                    rd = refract_dir;
+                    rp += rd * RAY_EPSILON;
                     in_volume = !in_volume;
                     throughput_rgb *= albedo_rgb;
                 }
             }
+
+            // // Calculate specular light contribution with the probability of specular_factor
+            // //if (1<0){
+            // if (specular_factor > 0) {
+
+            //     // Reflect 
+            //     if (rng.random_float() < specular_factor) {
+            //         rd = reflect(rp, rd);
+            //     }
+            //     else {
+            //         throughput_rgb = throughput_rgb;
+            //         in_volume = !in_volume;
+            //         //rd = sample_HG(rd, scattering_anisotropy, rng);
+            //         throughput_rgb *= albedo_rgb;
+            //     }
+
+            //     // if (rng.random_float() < specular_factor) {
+            //     // //if (0) {    // Just reflect, don't explicitely calculate specular
+
+            //     //     float intensity = 1.0f;
+            //     //     int light_exposure = 5;   
+
+            //     //     float3 specular_color = float3(1,1,1) * specular_factor * intensity * pow(2, light_exposure);
+            //     //     return throughput_rgb * specular_color * transmittance / specular_factor;
+            //     // }
+            //     // else {
+            //     //     in_volume = !in_volume;
+            //     //     throughput_rgb = throughput_rgb / (1 - specular_factor);
+            //     //     throughput_rgb *= albedo_rgb;
+            //     // }
+            // }
+            // else{
+            //     //return float3(100,0,0);
+            //     in_volume = !in_volume;
+            //     throughput_rgb *= albedo_rgb;
+            // }
         }
         else {
             //return float3(100,0,0);
@@ -1097,7 +1138,8 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         // Since light raytracing and volume raytracing are independent, peform light tracing only when out-volume mode
         if (!in_volume) {
             if (intersect_torus(rp, rd)) {
-                return L + throughput_rgb * float3(1,1,1) * 5;
+                int torus_light_exposure = 8;
+                return L + throughput_rgb * float3(1,1,1) * pow(2, torus_light_exposure);
             }
             //if (intersect_plane(float3(0, -100, -100), float3(0, 100, 100), rp, rd)) return L + throughput_rgb * float3(1,1,1) * 3.0;
         }
@@ -1105,7 +1147,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         // Adjust the path throughput (RR or modulate)
         #ifdef RUSSIAN_ROULETTE
-        if (n >= 23) {
+        if (n >= 10) {
             // Terminate by 50% chancev after 15 bounces
             float p = 0.5;
             if (rng.random_float() < p) {
