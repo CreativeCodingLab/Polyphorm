@@ -491,8 +491,6 @@ float3 refract(float3 rp, float3 rd) {
     return k < 0 ? 0 : eta * rd + (eta * cosi - sqrt(k)) * n;
 }
 
-
-
 // return kr: amount of reflected light. thus 1-kr is refracted light
 float fresnel(float3 rp, float3 rd) {
 
@@ -850,7 +848,7 @@ bool intersect_torus(float3 rp, float3 rd) {
     
     // Torus Config
     float R = 300;
-    float r = 5;
+    float r = 50;
 
     float3 bb_max = R+r;
     float3 bb_min = -R-r;
@@ -986,6 +984,16 @@ float3 apply_glossy(float3 rd, float n, inout RNG rng) {
     return 0;
 }
 
+float3 calc_fake_key_light(float3 rd) {
+    float3 light_dir = float3(1,0,0);
+
+    light_dir = normalize(light_dir);
+
+    float cos_simil = dot(light_dir, normalize(rd));
+
+    return cos_simil > 0 ? cos_simil * cos_simil : 0;
+}
+
 
 float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBounces, inout RNG rng) {
     float3 L = float3(0.0, 0.0, 0.0);
@@ -1043,11 +1051,11 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
             // Render HDRI as a texture
             if (bounce_n == 0) {
-                return calc_ambient_color(rp, rd, 0.001, rng) * 3;
+                return calc_ambient_color(rp, rd, 0.001, rng) * 1;
                 return float3(0,0,0);
             }
             // Render HDRI as a light
-            return L + throughput_rgb * calc_ambient_color(rp, rd, 0, rng) * 5;
+            return L + throughput_rgb * calc_ambient_color(rp, rd, 0, rng) * 2;
             return float3(0,0,0);
             // if (n == 0) return float3(0,0,0);
             // else return L + throughput_rgb * get_sky_L(rd);
@@ -1137,11 +1145,21 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         // Since light raytracing and volume raytracing are independent, peform light tracing only when out-volume mode
         if (!in_volume) {
-            if (intersect_torus(rp, rd)) {
-                int torus_light_exposure = 8;
-                return L + throughput_rgb * float3(1,1,1) * pow(2, torus_light_exposure);
+            if (bounce_n == 0) {
+                if (intersect_torus(rp, rd)) {
+                    int torus_light_exposure = 4;
+                    return L + throughput_rgb * float3(1,1,1) * pow(2, torus_light_exposure);
+                }
+                //if (intersect_plane(float3(0, -100, -100), float3(0, 100, 100), rp, rd)) return L + throughput_rgb * float3(1,1,1) * 3.0;
             }
-            //if (intersect_plane(float3(0, -100, -100), float3(0, 100, 100), rp, rd)) return L + throughput_rgb * float3(1,1,1) * 3.0;
+            else {
+                bool hit_surface_shadow_ray = false;
+                delta_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface_shadow_ray);
+
+                if (!hit_surface_shadow_ray) {
+                    return L + throughput_rgb * float3(1,1,1) * calc_fake_key_light(rd) * pow(2, 4);
+                }
+            }
         }
         
 

@@ -518,7 +518,7 @@ int main(int argc, char **argv)
     TextureSampler tex_sampler_color_palette = graphics::get_texture_sampler();
 
     // HDRI Image for Vol Path Rendering
-    Texture2D nature_hdri_tex =graphics::load_texture2D("textures/nature.tga");
+    Texture2D nature_hdri_tex =graphics::load_texture2D("textures/autumn_ground_8k.tga");
     TextureSampler tex_sampler_nature_hdri = graphics::get_texture_sampler();
     
 	graphics::set_blend_state(BlendType::ALPHA);
