@@ -3,7 +3,7 @@
 #define PI 3.141592
 #define PI2 6.283184
 #define INV_PI4 0.079577
-#define RAY_EPSILON 1.e-4
+#define RAY_EPSILON 1.e-5
 #define INTENSITY_EPSILON 1.e-4
 #define NUMERICAL_EPSILON 1.e-4
 
@@ -381,25 +381,27 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         + (rx - cam_offset_ratio * camera_offset_x) * camX
         + (ry - cam_offset_ratio * camera_offset_y) * camY
         + screen_distance * camZ;
-    float3 rp = camera_pos;
-    float3 rd = normalize(screen_pos - rp);
 
     // Get intersection of the ray with the volume AABB
-    float3 path_L = float3(0.0, 0.0, 0.0);
-    float2 t = 0.0;
+    float3 grid_res = float3(grid_x, grid_y, grid_z);
     float3 diagonal_AABB = float3(1.0, grid_y / grid_x, grid_z / grid_x);
     float3 c_low = -0.5 * diagonal_AABB;
     float3 c_high = 0.5 * diagonal_AABB;
-    t = ray_AABB_intersection(rp, rd, c_low, c_high);
+    float3 rp = coord_normalized_to_texture(camera_pos, c_low, c_high, grid_res);
+    float3 rd = normalize(coord_normalized_to_texture(screen_pos, c_low, c_high, grid_res) - rp);
+    float3 c_low_trimmed = float3(trim_x_min, trim_y_min, trim_z_min) * grid_res;
+    float3 c_high_trimmed = float3(trim_x_max, trim_y_max, trim_z_max) * grid_res;
+    float2 t = ray_AABB_intersection(rp, rd, c_low_trimmed, c_high_trimmed);
+
+    // Integrate...
+    float3 path_L = float3(0.0, 0.0, 0.0);
     if (t.y >= 0) {
         t.x += RAY_EPSILON;
         t.y -= RAY_EPSILON;
 
         // Integrate along the ray segment that intersects the AABB
-        float3 r0 = coord_normalized_to_texture(rp + t.x * rd, c_low, c_high, float3(grid_x, grid_y, grid_z));
-        float3 r1 = coord_normalized_to_texture(rp + t.y * rd, c_low, c_high, float3(grid_x, grid_y, grid_z));
-        rp = r0;
-        rd = r1 - r0;
+        rp = rp + t.x * rd;
+        rd = rd * (t.y - t.x);
         
         if (sigma_s < INTENSITY_EPSILON) {
         // If there's no appreciable scattering, we can just use the
@@ -432,7 +434,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         } else {
         // If there's significant scattering, we need the full path-traced solution
             rd = normalize(rd);
-            path_L = get_incident_L(rp, rd, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces + 1, rng);
+            path_L = get_incident_L(rp, rd, c_low_trimmed, c_high_trimmed, n_bounces + 1, rng);
         }
     } else {
         path_L = get_sky_L(rd);

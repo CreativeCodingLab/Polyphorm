@@ -20,13 +20,14 @@
 //====================================================================
 
 //*** Work regimes: Uncomment exactly one!
-// #define REGIME_SDSS
+#define REGIME_SDSS
 // #define REGIME_FRB
+// #define REGIME_TNG
 // #define REGIME_BOLSHOI_PLANCK
 // #define REGIME_ROCKSTAR
 // #define REGIME_POISSON
 // #define REGIME_CONNECTOME
-#define REGIME_EMBEDDING
+// #define REGIME_EMBEDDING
 
 //*** Enable velocity analysis, which will change the trace volume from <half> to <half4>
 //*** with the extra 3 channels storing the equilibrium mean unsigned orientation of the agents
@@ -66,6 +67,19 @@ const float MOVE_DISTANCE = 0.1;
 const float AGENT_DEPOSIT = 0.0;
 const float PERSISTENCE = 0.885;
 const float SAMPLING_EXPONENT = 3.0;
+#endif
+
+#ifdef REGIME_TNG
+#define DATASET_NAME "data/TNG/tng100-1_allSubHalos_spinEtc_t=0.01"
+#define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
+#define COLOR_PALETTE_DATA "data/palette_hot.tga"
+const float SENSE_SPREAD = 20.0;
+const float SENSE_DISTANCE = 2.55;
+const float MOVE_ANGLE = 10.0;
+const float MOVE_DISTANCE = 0.1;
+const float AGENT_DEPOSIT = 0.0;
+const float PERSISTENCE = 0.91;
+const float SAMPLING_EXPONENT = 3.5;
 #endif
 
 #ifdef REGIME_FRB
@@ -1382,7 +1396,7 @@ int main(int argc, char **argv)
             rendering_config.sample_weight = math::pow(10.0, swgt);
             reset_pt |= ui::add_slider(&panel, "DEPOSIT WEIGHT", &rendering_config.galaxy_weight, 0.0, 1.0);
 
-            ui::add_toggle(&panel, "AGENT SORTING", &sort_agents);
+            // ui::add_toggle(&panel, "AGENT SORTING", &sort_agents);
             ui::add_toggle(&panel, "TRACE HISTOGRAM", &compute_histogram);
             static bool random_histogram_sampling = false;
             ui::add_toggle(&panel, "HIST RNG SAMPLING", &random_histogram_sampling);
@@ -1393,19 +1407,19 @@ int main(int argc, char **argv)
                 float trim_pos = (rendering_config.trim_x_max + rendering_config.trim_x_min) / 2.0;
                 float trim_width = rendering_config.trim_x_max - rendering_config.trim_x_min;
                 reset_pt |= ui::add_slider(&panel, "X POS", &trim_pos, 0.0, 1.0);
-                ui::add_slider(&panel, "X WIDTH", &trim_width, 0.0, 1.0);
+                reset_pt |=ui::add_slider(&panel, "X WIDTH", &trim_width, 0.0, 1.0);
                 rendering_config.trim_x_min = smoothing_coef * rendering_config.trim_x_min + (1.0-smoothing_coef) * (trim_pos - 0.5 * trim_width);
                 rendering_config.trim_x_max = smoothing_coef * rendering_config.trim_x_max + (1.0-smoothing_coef) * (trim_pos + 0.5 * trim_width);
                 trim_pos = (rendering_config.trim_y_max + rendering_config.trim_y_min) / 2.0;
                 trim_width = rendering_config.trim_y_max - rendering_config.trim_y_min;
                 reset_pt |= ui::add_slider(&panel, "Y POS", &trim_pos, 0.0, 1.0);
-                ui::add_slider(&panel, "Y WIDTH", &trim_width, 0.0, 1.0);
+                reset_pt |=ui::add_slider(&panel, "Y WIDTH", &trim_width, 0.0, 1.0);
                 rendering_config.trim_y_min = smoothing_coef * rendering_config.trim_y_min + (1.0-smoothing_coef) * (trim_pos - 0.5 * trim_width);
                 rendering_config.trim_y_max = smoothing_coef * rendering_config.trim_y_max + (1.0-smoothing_coef) * (trim_pos + 0.5 * trim_width);
                 trim_pos = (rendering_config.trim_z_max + rendering_config.trim_z_min) / 2.0;
                 trim_width = rendering_config.trim_z_max - rendering_config.trim_z_min;
                 reset_pt |= ui::add_slider(&panel, "Z POS", &trim_pos, 0.0, 1.0);
-                ui::add_slider(&panel, "Z WIDTH", &trim_width, 0.0, 1.0);
+                reset_pt |=ui::add_slider(&panel, "Z WIDTH", &trim_width, 0.0, 1.0);
                 rendering_config.trim_z_min = smoothing_coef * rendering_config.trim_z_min + (1.0-smoothing_coef) * (trim_pos - 0.5 * trim_width);
                 rendering_config.trim_z_max = smoothing_coef * rendering_config.trim_z_max + (1.0-smoothing_coef) * (trim_pos + 0.5 * trim_width);
             }
