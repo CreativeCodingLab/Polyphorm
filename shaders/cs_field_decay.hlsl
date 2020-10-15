@@ -83,28 +83,13 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     v *= decay_factor;
     tex_out[p] = v;
 
-    // Alternative distance-field decay
-    // float max_deposit = 0.0;
-    // for (int dx = -1; dx <= 1; dx++) {
-    //     for (int dy = -1; dy <= 1; dy++) {
-    //         for (int dz = -1; dz <= 1; dz++) {
-    //             float weight = 1.0 / sqrt(float(1 + abs(dx) + abs(dy) + abs(dz)));
-    //             int3 txcoord = int3(p) + int3(dx, dy, dz);
-    //             float val = weight * tex_in[txcoord];
-    //             max_deposit = (val < max_deposit)? max_deposit : val;
-    //         }
-    //     }
-    // }
-    // tex_out[p] = max(max_deposit - decay_factor * 0.01, 0.0);
-
-    RNG rng;
-    rng.set_seed(
-        rng.wang_hash(uint(100.0*v)),
-        rng.wang_hash(uint(p.x*p.y*p.z))
-    );
-
     // Decay the trace a little
     // tex_trace[p] *= 0.99;
-    tex_trace[p] *= 0.985 + 0.01 * rng.random_float();
+    RNG rng;
+    rng.set_seed(
+        rng.wang_hash(uint(113.0*v)),
+        rng.wang_hash(uint(p.x*p.y*p.z))
+    );
+    tex_trace[p] *= 0.985 + 0.01 * rng.random_float(); // avoid quantization errors of a constant decay factor
 }
 
