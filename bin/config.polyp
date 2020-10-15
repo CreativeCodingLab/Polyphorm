@@ -1,12 +1,15 @@
 Agents number = 10000000
-Grid resolution = 1024
+Grid resolution = 720
 Grid padding = 0.1
-Screen X = 2000
-Screen Y = 1100
+Screen X = 1800
+Screen Y = 1000
 Camera FOV = 30.0
 Histogram base = 10.0
 
 # Anything below this line is ingored
+
+Screen X = 2000
+Screen Y = 1100
 
 Screen X = 1800
 Screen Y = 1000

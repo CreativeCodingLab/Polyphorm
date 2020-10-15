@@ -13,22 +13,30 @@
 #include <sstream>
 #include <fstream>
 
-// Truncation from double to float, who cares...
+//*** Truncation from double to float warning
 #pragma warning(disable:4305)
 #pragma warning(disable:4244)
 
 //====================================================================
 
-// Work regimes: Uncomment one and only one of these...
-#define REGIME_SDSS
+//*** Work regimes: Uncomment exactly one!
+// #define REGIME_SDSS
 // #define REGIME_FRB
 // #define REGIME_BOLSHOI_PLANCK
 // #define REGIME_ROCKSTAR
 // #define REGIME_POISSON
 // #define REGIME_CONNECTOME
-// #define REGIME_EMBEDDING
+#define REGIME_EMBEDDING
 
+//*** Enable velocity analysis, which will change the trace volume from <half> to <half4>
+//*** with the extra 3 channels storing the equilibrium mean unsigned orientation of the agents
 // #define VELOCITY_ANALYSIS
+
+//*** How to initialize the agents in their 3D domain: Uncomment exactly one!
+#define AGENTS_INIT_AROUND_DATA
+// #define AGENTS_INIT_RANDOMLY
+
+//====================================================================
 
 #ifdef REGIME_SDSS
 #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
@@ -80,10 +88,10 @@ const float SAMPLING_EXPONENT = 3.6;
 #endif
 
 #ifdef REGIME_POISSON
-#define DATASET_NAME "data/Conduits/poisson_256_2d_conduits_n_levels=100_ratio=1.05"
+// #define DATASET_NAME "data/Conduits/poisson_256_2d_conduits_n_levels=100_ratio=1.05"
 // #define DATASET_NAME "data/Poisson/regular_4096_3d"
 // #define DATASET_NAME "data/Poisson/random_4096_3d"
-// #define DATASET_NAME "data/Poisson/poisson_4096_2d_3d"
+#define DATASET_NAME "data/Poisson/poisson_4096_2d_3d"
 // #define DATASET_NAME "data/Poisson/poisson_256_2d_3d_flattened"
 #define COLOR_PALETTE_TRACE "data/palette_hot.tga"
 #define COLOR_PALETTE_DATA "data/palette_hot.tga"
@@ -103,7 +111,7 @@ const float SAMPLING_EXPONENT = 4.5;
 #endif
 
 #ifdef REGIME_EMBEDDING
-#define DATASET_NAME "data/Embeddings/back_embed_n=18266"
+#define DATASET_NAME "data/Embeddings/W2V_UMAP_params_15_n=296630"
 #define COLOR_PALETTE_TRACE "data/palette_magma.tga"
 #define COLOR_PALETTE_DATA "data/palette_gogh_blue.tga"
 const float SENSE_SPREAD = 20.0;
@@ -178,7 +186,7 @@ struct SimulationConfig {
 
     int n_data_points;
     int n_agents;
-    int filler2;
+    int n_iteration;
     int filler3;
 };
 
@@ -434,6 +442,13 @@ int main(int argc, char **argv)
     assert(graphics::is_ready(&compute_shader));
     printf("cs_agents_propagate shader compiled...\n");
 
+    // Particle sorting shader
+    File sort_shader_file = file_system::read_file("cs_agents_sort.hlsl");
+    ComputeShader sort_shader = graphics::get_compute_shader_from_code((char *)sort_shader_file.data, sort_shader_file.size);
+    file_system::release_file(sort_shader_file);
+    assert(graphics::is_ready(&sort_shader));
+    printf("cs_agents_sort shader compiled...\n");
+
     // Decay/diffusion shader
     File decay_compute_shader_file = file_system::read_file("cs_field_decay.hlsl");
     ComputeShader decay_compute_shader = graphics::get_compute_shader_from_code((char *)decay_compute_shader_file.data, decay_compute_shader_file.size);
@@ -514,7 +529,8 @@ int main(int argc, char **argv)
     {
         for (int i = 0; i < count; ++i) {
 
-            if (i < data_count) { // These are the data points
+            // These are the data points, read from input
+            if (i < data_count) {
                 int start_index = int(4*i);
 
                 float x = input_data[start_index];
@@ -531,19 +547,29 @@ int main(int argc, char **argv)
                 else
                     pw[i] = weight;
 
-                pt[i] = -5; // Marker value for input data
+                pt[i] = -5.0; // Marker value for input data
                 pp[i] = 0.0;
             }
 
-            else { // These are free physarum agents
+            // These are free-flowing physarum agents
+            else {
+                #ifdef AGENTS_INIT_AROUND_DATA // Initialize the agents around data points to speed up convergence
                 int random_data_index = (int)random::uniform(0.0, (float)(data_count-1));
-                const float random_spread = 0.05;
-                // Initialize the agents around data points to speed up convergence
-                px[i] = px[random_data_index] + random::uniform(-random_spread * (float)gx, random_spread * (float)gx);
-                py[i] = py[random_data_index] + random::uniform(-random_spread * (float)gy, random_spread * (float)gy);
-                pz[i] = pz[random_data_index] + random::uniform(-random_spread * (float)gz, random_spread * (float)gz);
-                pt[i] = random::uniform(0.0, math::PI2);
-                pp[i] = math::acos(2.0 * random::uniform(0.0, 1.0) - 1.0);
+                const float random_spread = 0.025;
+                float radius = random_spread * math::min(math::min(gx, gy), gz) * random::uniform();
+                float xi1 = random::uniform();
+                float xi2 = random::uniform();
+                px[i] = px[random_data_index] + radius * math::cos(math::PI2 * xi1) * math::sqrt(xi2 * (1.0-xi2));
+                py[i] = py[random_data_index] + radius * math::sin(math::PI2 * xi1) * math::sqrt(xi2 * (1.0-xi2));
+                pz[i] = pz[random_data_index] + 0.5 * radius * (1.0 - 2.0*xi2);
+                #endif
+                #ifdef AGENTS_INIT_RANDOMLY
+                px[i] = random::uniform(0.0, (float)gx);
+                py[i] = random::uniform(0.0, (float)gy);
+                pz[i] = random::uniform(0.0, (float)gz);
+                #endif
+                pp[i] = random::uniform(0.0, math::PI2);
+                pt[i] = math::acos(2.0 * random::uniform(0.0, 1.0) - 1.0);
                 pw[i] = 1.0;
             }
 
@@ -646,7 +672,7 @@ int main(int argc, char **argv)
     rendering_config.world_depth = (float)GRID_RESOLUTION_Z;
     rendering_config.screen_width = (float)window_width;
     rendering_config.screen_height = (float)window_height;
-    rendering_config.sample_weight = 0.025;
+    rendering_config.sample_weight = 0.01;
     rendering_config.optical_thickness = 0.25;
     rendering_config.highlight_density = 10.0;
     rendering_config.galaxy_weight = 0.25;
@@ -689,6 +715,7 @@ int main(int argc, char **argv)
     simulation_config.normalization_factor = 1.0;
     simulation_config.n_data_points = data_count;
     simulation_config.n_agents = NUM_AGENTS;
+    simulation_config.n_iteration = 0;
     ConstantBuffer config_buffer = graphics::get_constant_buffer(sizeof(SimulationConfig));
 
     // Assign default misc parameters
@@ -727,6 +754,7 @@ int main(int argc, char **argv)
     bool compute_histogram = true;
     bool run_pt = true;
     bool reset_pt = false;
+    bool sort_agents = false;
     float background_color = 0.0;
     VisualizationMode vis_mode = VisualizationMode::VM_PARTICLES;
 
@@ -737,6 +765,7 @@ int main(int argc, char **argv)
         std::ostringstream window_title;
         window_title.precision(3);
         window_title << "Polyphorm [ " << 1000.0 * sec_per_frame_amortized << " ms/frame";
+        window_title << " | pass " << simulation_config.n_iteration;
         if (vis_mode == VisualizationMode::VM_PATH_TRACING)
             window_title << " | " << rendering_config.pt_iteration << " spp";
         window_title << " ]";
@@ -808,6 +837,7 @@ int main(int argc, char **argv)
                 graphics_context->context->ClearUnorderedAccessViewFloat(trail_tex_B.ua_view, clear_tex);
                 graphics_context->context->ClearUnorderedAccessViewFloat(trace_tex.ua_view, clear_tex);
                 reset_eplot();
+                simulation_config.n_iteration = 0;
             }
             if (input::key_pressed(KeyCode::F3)) run_mold = !run_mold;
             if (input::key_pressed(KeyCode::F4)) turning_camera = !turning_camera;
@@ -885,6 +915,25 @@ int main(int argc, char **argv)
             graphics::run_compute(10, 10, grid_z);
             graphics::unset_texture_compute(0);
             graphics::unset_texture_compute(1);
+        }
+
+        // Partial agent sorting
+        if (run_mold && sort_agents)
+        {
+            graphics::set_compute_shader(&sort_shader);
+            graphics::set_structured_buffer(&particles_buffer_x, 2);
+            graphics::set_structured_buffer(&particles_buffer_y, 3);
+            graphics::set_structured_buffer(&particles_buffer_z, 4);
+            graphics::set_structured_buffer(&particles_buffer_phi, 5);
+            graphics::set_structured_buffer(&particles_buffer_theta, 6);
+            graphics::set_structured_buffer(&particles_buffer_weights, 7);
+            int32_t grid_z = (NUM_PARTICLES / 100) / THREAD_GROUP_SIZE;
+            // different attempts at addressing
+            for (int i = 0; i < 256; ++i) {
+                graphics::run_compute(10, 10, grid_z / 256);
+                ++simulation_config.n_iteration;
+                graphics::update_constant_buffer(&config_buffer, &simulation_config);
+            }
         }
 
         // Decay/diffusion
@@ -1333,6 +1382,7 @@ int main(int argc, char **argv)
             rendering_config.sample_weight = math::pow(10.0, swgt);
             reset_pt |= ui::add_slider(&panel, "DEPOSIT WEIGHT", &rendering_config.galaxy_weight, 0.0, 1.0);
 
+            ui::add_toggle(&panel, "AGENT SORTING", &sort_agents);
             ui::add_toggle(&panel, "TRACE HISTOGRAM", &compute_histogram);
             static bool random_histogram_sampling = false;
             ui::add_toggle(&panel, "HIST RNG SAMPLING", &random_histogram_sampling);
@@ -1458,6 +1508,9 @@ int main(int argc, char **argv)
             ui::end();
         }
 
+        if (run_mold) {
+            ++simulation_config.n_iteration;
+        }
         graphics::swap_frames();
     }
 
@@ -1473,6 +1526,7 @@ int main(int argc, char **argv)
     graphics::release(&draw_compute_shader_particle);
     graphics::release(&blit_compute_shader);
     graphics::release(&compute_shader);
+    graphics::release(&sort_shader);
     graphics::release(&decay_compute_shader);
     graphics::release(&cs_density_histo);
     graphics::release(&quad_mesh);
