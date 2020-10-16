@@ -389,8 +389,8 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     float3 c_high = 0.5 * diagonal_AABB;
     float3 rp = coord_normalized_to_texture(camera_pos, c_low, c_high, grid_res);
     float3 rd = normalize(coord_normalized_to_texture(screen_pos, c_low, c_high, grid_res) - rp);
-    float3 c_low_trimmed = float3(trim_x_min, trim_y_min, trim_z_min) * grid_res;
-    float3 c_high_trimmed = float3(trim_x_max, trim_y_max, trim_z_max) * grid_res;
+    float3 c_low_trimmed = float3(max(0.0,trim_x_min), max(0.0,trim_y_min), max(0.0,trim_z_min)) * grid_res;
+    float3 c_high_trimmed = float3(min(1.0,trim_x_max), min(1.0,trim_y_max), min(1.0,trim_z_max)) * grid_res;
     float2 t = ray_AABB_intersection(rp, rd, c_low_trimmed, c_high_trimmed);
 
     // Integrate...

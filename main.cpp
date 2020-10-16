@@ -33,6 +33,8 @@
 //*** with the extra 3 channels storing the equilibrium mean unsigned orientation of the agents
 // #define VELOCITY_ANALYSIS
 
+#define HALO_COLOR_ANALYSIS
+
 //*** How to initialize the agents in their 3D domain: Uncomment exactly one!
 #define AGENTS_INIT_AROUND_DATA
 // #define AGENTS_INIT_RANDOMLY
@@ -70,7 +72,7 @@ const float SAMPLING_EXPONENT = 3.0;
 #endif
 
 #ifdef REGIME_TNG
-#define DATASET_NAME "data/TNG/tng100-1_allSubHalos_spinEtc_t=0.01"
+#define DATASET_NAME "data/TNG/tng100-1_allSubHalos_spinEtc_t=0.0"
 #define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
 #define COLOR_PALETTE_DATA "data/palette_hot.tga"
 const float SENSE_SPREAD = 20.0;
@@ -79,7 +81,7 @@ const float MOVE_ANGLE = 10.0;
 const float MOVE_DISTANCE = 0.1;
 const float AGENT_DEPOSIT = 0.0;
 const float PERSISTENCE = 0.91;
-const float SAMPLING_EXPONENT = 3.5;
+const float SAMPLING_EXPONENT = 3.8;
 #endif
 
 #ifdef REGIME_FRB
@@ -1372,7 +1374,7 @@ int main(int argc, char **argv)
             graphics::set_render_targets_viewport(&render_target_window);
 
             Panel panel = ui::start_panel("", Vector2(0.0, 0.0), 1.0);
-            const float smoothing_coef = 0.9;
+            const float smoothing_coef = 0.1;
 
             float ss = math::rad2deg(simulation_config.sense_spread);
             reset_pt |= ui::add_slider(&panel, "SENSE ANGLE [DEG]", &ss, 0.0, 90.0);
