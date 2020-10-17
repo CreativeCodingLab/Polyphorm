@@ -231,19 +231,26 @@ struct RenderingConfig {
     float sigma1_a_g;
     float sigma1_a_b;
     float slime_ior;
+    float aperture;
+
+    float focus_dist;
     float light_pos;
-    
     float sphere_pos;
     int shininess;
+
     float some_slider;
     float sigma_t_rgb;
-
     float albedo_r;
     float albedo_g;
+    
     float albedo_b;
+    int tmp1;
     int tmp2;
+    int tmp3;
 
     // add new variables before albedos. Some bug.
+    // order matters
+    // render terminates if not multiple of 4, or not every parameter specified
 
 };
 
@@ -518,7 +525,7 @@ int main(int argc, char **argv)
     TextureSampler tex_sampler_color_palette = graphics::get_texture_sampler();
 
     // HDRI Image for Vol Path Rendering
-    Texture2D nature_hdri_tex =graphics::load_texture2D("textures/autumn_ground_8k.tga");
+    Texture2D nature_hdri_tex = graphics::load_texture2D("textures/autumn_ground_8k.tga");
     TextureSampler tex_sampler_nature_hdri = graphics::get_texture_sampler();
     
 	graphics::set_blend_state(BlendType::ALPHA);
@@ -703,10 +710,13 @@ int main(int argc, char **argv)
     rendering_config.sphere_pos = 0;
     rendering_config.shininess = 64;
 
+    rendering_config.aperture = 8.0;
+    rendering_config.focus_dist = 0.7;
+
     // Compute sigma_a and sigma_s for each of RGB
     rendering_config.sigma_t_rgb = 0.5;
-    rendering_config.albedo_r = 0.8;   // 0.92
-    rendering_config.albedo_g = 0.7;   // 0.88
+    rendering_config.albedo_r = 0.92;   // 0.92
+    rendering_config.albedo_g = 0.88;   // 0.88
     rendering_config.albedo_b = 0.05;   // 0.05
     rendering_config.some_slider = 0;
 
@@ -1532,6 +1542,11 @@ int main(int argc, char **argv)
                 float shininess = rendering_config.shininess;
                 reset_pt |= ui::add_slider(&panel, "shininess", &shininess, 1.0, 2000.0);
                 rendering_config.shininess = math::floor(shininess);
+
+                // focus distance
+                float focus_dist = rendering_config.focus_dist;
+                reset_pt |= ui::add_slider(&panel, "focus_dist", &focus_dist, 0.0, 1.0);
+                rendering_config.focus_dist = focus_dist;
 
                 // Some slider for debug
                 float some_slider = rendering_config.some_slider;

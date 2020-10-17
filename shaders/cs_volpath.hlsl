@@ -90,14 +90,22 @@ cbuffer ConfigBuffer : register(b4)
     float sigma1_s_g;
     float sigma1_s_b;
     float sigma1_a_r;
+
     float sigma1_a_g;
     float sigma1_a_b;
     float slime_ior;
-
+    float aperture;
+    
+    float focus_dist;
     float light_pos;
     float sphere_pos;
     int shininess;
+
     float some_slider;
+    int tmp1;
+    int tmp2;
+    int tmp3;
+    
 
 };
 
@@ -956,6 +964,22 @@ float3 sample_hemisphere(float3 normal, inout RNG rng) {
     return normalize(candidate_vec); 
 }
 
+// Randomly sample a point on the surface of unit hemisphere
+float2 sample_disk(inout RNG rng) {
+    
+    float2 candidate_vec;
+    
+    while(true) {
+        // Random sampling in (-1,-1), (1,1)
+        candidate_vec = 2.0 * float2(rng.random_float(), rng.random_float()) - float2(1,1);
+        
+        // Good if the sampling point is in an unit sphere
+        if (length(candidate_vec) <= 1.0) break;
+    }
+
+    return candidate_vec; 
+}
+
 // rd is the direct reflection direction
 // n controls glossiness
 float3 apply_glossy(float3 rd, float n, inout RNG rng) {
@@ -1051,7 +1075,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
             // Render HDRI as a texture
             if (bounce_n == 0) {
-                return calc_ambient_color(rp, rd, 0.001, rng) * 1;
+                // return calc_ambient_color(rp, rd, 0.001, rng) * 1;
                 return float3(0,0,0);
             }
             // Render HDRI as a light
@@ -1060,6 +1084,8 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
             // if (n == 0) return float3(0,0,0);
             // else return L + throughput_rgb * get_sky_L(rd);
         }
+
+        //return float3(1,0,0);
 
         // Move to the next intersection
         rp += t_event * rd;
@@ -1147,7 +1173,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         if (!in_volume) {
             if (bounce_n == 0) {
                 if (intersect_torus(rp, rd)) {
-                    int torus_light_exposure = 4;
+                    int torus_light_exposure = 6;
                     return L + throughput_rgb * float3(1,1,1) * pow(2, torus_light_exposure);
                 }
                 //if (intersect_plane(float3(0, -100, -100), float3(0, 100, 100), rp, rd)) return L + throughput_rgb * float3(1,1,1) * 3.0;
@@ -1269,7 +1295,13 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             }
         } else {
         // If there's significant scattering, we need the full path-traced solution
-            rd = normalize(rd);
+            float lens_radius = aperture / 2.0;
+            float2 random_disk = sample_disk(rng);
+            float2 random_lens = lens_radius * random_disk;
+            float3 offset = camZ * random_lens.x + camY * random_lens.y;
+
+            rp = rp + offset * focus_dist;
+            rd = normalize(rd - offset / focus_dist);
             path_L = get_incident_L(rp, rd, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces + 1, rng);
         }
     } else {
