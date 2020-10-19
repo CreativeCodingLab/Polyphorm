@@ -287,6 +287,8 @@ float delta_tracking_in_volume(float3 rp, float3 rd, float t_min, float t_max, f
 	do {
 		t += delta_step(sigma_max_inv, rng.random_float());
 
+        if (get_halo(rp + t * rd) > 500) return 0;
+
         event_rho = get_rho(rp + t * rd);
         // grad = get_rho_gradient(rp,1.0);
         // if (length(grad) > 0.001) return t;
@@ -1062,6 +1064,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         #else
         if (in_volume) {
             t_event = delta_tracking_in_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
+            if (t_event == 0) return float3(1,1,5);
         }
         else {
             t_event = delta_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
@@ -1173,7 +1176,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         if (!in_volume) {
             if (bounce_n == 0) {
                 if (intersect_torus(rp, rd)) {
-                    int torus_light_exposure = 6;
+                    int torus_light_exposure = 4;
                     return L + throughput_rgb * float3(1,1,1) * pow(2, torus_light_exposure);
                 }
                 //if (intersect_plane(float3(0, -100, -100), float3(0, 100, 100), rp, rd)) return L + throughput_rgb * float3(1,1,1) * 3.0;

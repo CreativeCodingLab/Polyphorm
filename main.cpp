@@ -714,10 +714,10 @@ int main(int argc, char **argv)
     rendering_config.focus_dist = 0.7;
 
     // Compute sigma_a and sigma_s for each of RGB
-    rendering_config.sigma_t_rgb = 0.5;
-    rendering_config.albedo_r = 0.92;   // 0.92
-    rendering_config.albedo_g = 0.88;   // 0.88
-    rendering_config.albedo_b = 0.05;   // 0.05
+    rendering_config.sigma_t_rgb = 0.6;
+    rendering_config.albedo_r = 0.85;   // 0.92
+    rendering_config.albedo_g = 0.75;   // 0.88
+    rendering_config.albedo_b = 0.24;   // 0.05
     rendering_config.some_slider = 0;
 
     rendering_config.sigma1_a_r = (1 - rendering_config.albedo_r) * rendering_config.sigma_t_rgb;
