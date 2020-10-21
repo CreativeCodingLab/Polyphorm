@@ -710,7 +710,7 @@ int main(int argc, char **argv)
     rendering_config.sphere_pos = 0;
     rendering_config.shininess = 64;
 
-    rendering_config.aperture = 8.0;
+    rendering_config.aperture = 0;  // default 0.8
     rendering_config.focus_dist = 0.7;
 
     // Compute sigma_a and sigma_s for each of RGB

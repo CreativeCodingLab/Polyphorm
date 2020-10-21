@@ -324,6 +324,52 @@ float delta_tracking_out_volume(float3 rp, float3 rd, float t_min, float t_max, 
 	return t;
 }
 
+// current_layer: 0 out-volume, 1 outer-jello, 2 in-volume
+float delta_tracking_multi_layers(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, inout RNG rng, inout int current_layer, inout bool hit_surface) {
+	float sigma_max_inv = rho_max_inv / ((sigma1_a_r + sigma1_s_r + sigma1_a_g + sigma1_s_g + sigma1_a_b + sigma1_s_b) / 3);    // this greater, steps greater
+    float t = t_min;
+    float event_rho = 0.0;
+    float grad = 0.0;
+
+    if (t_min >= t_max) return t;   // t_min > t_max is not supposed to happen
+	do {
+		t += delta_step(sigma_max_inv, rng.random_float());
+
+        // if (get_halo(rp + t * rd) > 500) return 0;
+
+        event_rho = get_rho(rp + t * rd);
+
+        if (current_layer == 0 && event_rho > 0.4) {
+            hit_surface = true;
+            current_layer = 1;
+            break;
+        }
+
+        if (current_layer == 1) {
+            if (event_rho > 0.5) {
+                current_layer = 2;
+            }
+            if (event_rho < 0.4) {
+                current_layer = 0;
+            }
+            hit_surface = true;
+            break;
+        }
+
+        if (current_layer == 2 && event_rho < 0.5) {
+            current_layer = 1;
+            hit_surface = true;
+            break;
+        }
+
+        if (current_layer == 2 && rng.random_float() < 1 * rho_max_inv) return t;
+        if (current_layer == 1 && rng.random_float() < 5 * rho_max_inv) return t;
+
+	} while (t <= t_max); 
+
+	return t;
+}
+
 float occlusion_tracking(float3 rp, float3 rd, float t_min, float t_max, float rho_max_inv, float subsampling, inout RNG rng) {
 	float sigma_max_inv = rho_max_inv / (sigma_a + sigma_s);
     float t = t_min;
@@ -1042,6 +1088,7 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
     #endif
 
     bool in_volume = false;
+    int current_layer = 0;
 
     int bounce_n = 0;
     for (int n = 0; n < nBounces; n++) {
@@ -1063,11 +1110,11 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         }
         #else
         if (in_volume) {
-            t_event = delta_tracking_in_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
+            t_event = delta_tracking_multi_layers(rp, rd, 0.0, t.y, rho_max_inv, rng, current_layer, hit_surface);
             if (t_event == 0) return float3(1,1,5);
         }
         else {
-            t_event = delta_tracking_out_volume(rp, rd, 0.0, t.y, rho_max_inv, rng, hit_surface);
+            t_event = delta_tracking_multi_layers(rp, rd, 0.0, t.y, rho_max_inv, rng, current_layer, hit_surface);
         }
         #endif
 
@@ -1123,7 +1170,8 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
                     rd = refract_dir;
                     rp += rd * RAY_EPSILON;
                     in_volume = !in_volume;
-                    throughput_rgb *= albedo_rgb;
+                    if (current_layer == 1) throughput_rgb *= float3(0.98, 0.98, 0.98);
+                    if (current_layer == 2) throughput_rgb *= albedo_rgb;
                 }
             }
 
@@ -1165,7 +1213,8 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         }
         else {
             //return float3(100,0,0);
-            throughput_rgb *= albedo_rgb;
+            if (current_layer == 1) throughput_rgb *= float3(0.98, 0.98, 0.98);
+            if (current_layer == 2) throughput_rgb *= albedo_rgb;
             rd = sample_HG(rd, scattering_anisotropy, rng);
         }
         #else
