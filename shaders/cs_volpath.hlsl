@@ -3,7 +3,7 @@
 #define PI 3.141592
 #define PI2 6.283184
 #define INV_PI4 0.079577
-#define RAY_EPSILON 1.e-4
+#define RAY_EPSILON 1.e-5
 #define INTENSITY_EPSILON 1.e-4
 #define NUMERICAL_EPSILON 1.e-4
 
@@ -246,7 +246,7 @@ float3 get_halo_gradient(float3 rp, float dp) {
 }
 
 float3 get_emitted_trace_L(float rho) {
-    return tex_palette_trace.SampleLevel(tex_palette_trace_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
+    return 0.05 * tex_palette_trace.SampleLevel(tex_palette_trace_sampler, float2(remap(rho, 1.0), 0.5), 0).rgb;
 }
 
 float3 get_emitted_data_L(float rho) {
@@ -1296,25 +1296,27 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         + (rx - cam_offset_ratio * camera_offset_x) * camX
         + (ry - cam_offset_ratio * camera_offset_y) * camY
         + screen_distance * camZ;
-    float3 rp = camera_pos;
-    float3 rd = normalize(screen_pos - rp);
 
     // Get intersection of the ray with the volume AABB
-    float3 path_L = float3(0.0, 0.0, 0.0);
-    float2 t = 0.0;
+    float3 grid_res = float3(grid_x, grid_y, grid_z);
     float3 diagonal_AABB = float3(1.0, grid_y / grid_x, grid_z / grid_x);
     float3 c_low = -0.5 * diagonal_AABB;
     float3 c_high = 0.5 * diagonal_AABB;
-    t = ray_AABB_intersection(rp, rd, c_low, c_high);
+    float3 rp = coord_normalized_to_texture(camera_pos, c_low, c_high, grid_res);
+    float3 rd = normalize(coord_normalized_to_texture(screen_pos, c_low, c_high, grid_res) - rp);
+    float3 c_low_trimmed = float3(max(0.0,trim_x_min), max(0.0,trim_y_min), max(0.0,trim_z_min)) * grid_res;
+    float3 c_high_trimmed = float3(min(1.0,trim_x_max), min(1.0,trim_y_max), min(1.0,trim_z_max)) * grid_res;
+    float2 t = ray_AABB_intersection(rp, rd, c_low_trimmed, c_high_trimmed);
+
+    // Integrate...
+    float3 path_L = float3(0.0, 0.0, 0.0);
     if (t.y >= 0) {
         t.x += RAY_EPSILON;
         t.y -= RAY_EPSILON;
 
         // Integrate along the ray segment that intersects the AABB
-        float3 r0 = coord_normalized_to_texture(rp + t.x * rd, c_low, c_high, float3(grid_x, grid_y, grid_z));
-        float3 r1 = coord_normalized_to_texture(rp + t.y * rd, c_low, c_high, float3(grid_x, grid_y, grid_z));
-        rp = r0;
-        rd = r1 - r0;
+        rp = rp + t.x * rd;
+        rd = rd * (t.y - t.x);
         
         if (0) { // ignore ray marching
         // if (sigma_s < INTENSITY_EPSILON) {
@@ -1347,14 +1349,14 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             }
         } else {
         // If there's significant scattering, we need the full path-traced solution
-            float lens_radius = aperture / 2.0;
-            float2 random_disk = sample_disk(rng);
-            float2 random_lens = lens_radius * random_disk;
-            float3 offset = camZ * random_lens.x + camY * random_lens.y;
+          float lens_radius = aperture / 2.0;
+          float2 random_disk = sample_disk(rng);
+          float2 random_lens = lens_radius * random_disk;
+          float3 offset = camZ * random_lens.x + camY * random_lens.y;
 
-            rp = rp + offset * focus_dist;
-            rd = normalize(rd - offset / focus_dist);
-            path_L = get_incident_L(rp, rd, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces + 1, rng);
+          rp = rp + offset * focus_dist;
+          rd = normalize(rd - offset / focus_dist);
+          path_L = get_incident_L(rp, rd, float3(0.0, 0.0, 0.0), float3(grid_x, grid_y, grid_z), n_bounces + 1, rng);
         }
     } else {
         path_L = get_sky_L(rd);

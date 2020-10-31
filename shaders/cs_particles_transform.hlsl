@@ -88,17 +88,15 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 group_id : SV_GroupID,
     float4 out_posf = mul(projection_matrix, world_pos);
     out_posf /= out_posf.w;
     out_posf = out_posf * 0.5 + 0.5;
-    out_posf.xy *= float2(screen_width, screen_height);
+    if (out_posf.x < 0.0 || out_posf.y < 0.0 || out_posf.x > 1.0 || out_posf.y > 1.0)
+        return;
     
     // Store sample to output texture.
+    out_posf.xy *= float2(screen_width, screen_height);
     uint2 out_pos = uint2(out_posf.xy);
     if (t < 0.0) {
         if (galaxy_weight > 0.001) {
             InterlockedAdd(tex_out[out_pos], 10000);
-            // tex_out[out_pos+uint2(0,-1)] += 10000;
-            // tex_out[out_pos+uint2(0,1)] += 10000;
-            // tex_out[out_pos+uint2(-1,0)] += 10000;
-            // tex_out[out_pos+uint2(1,0)] += 10000;
         }
     } else {
         InterlockedAdd(tex_out[out_pos], 10);

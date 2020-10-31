@@ -114,7 +114,8 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
     
     // Get base vector which points away from the current particle's direction and will be used
     // to sample environment in other directions
-    float sense_theta = th - sense_spread;// * clamp(rng.random_float(), 0.001, 0.999); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    float xiDirectional = 0.95 + 0.1 * rng.random_float();
+    float sense_theta = th - sense_spread * xiDirectional;
     float3 off_center_base_dir = float3(sin(sense_theta) * cos(ph), cos(sense_theta), sin(sense_theta) * sin(ph));
 
     // Probabilistic sensing
@@ -157,7 +158,7 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
         #else
         if (p_turn > p_straight) {
         #endif
-            float theta_turn = th - turn_angle;// * clamp(rng.random_float(), 0.001, 0.999); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            float theta_turn = th - turn_angle * xiDirectional;
             float3 off_center_base_dir_turn = float3(sin(theta_turn) * cos(ph), cos(theta_turn), sin(theta_turn) * sin(ph));
             float3 new_direction = rotate(off_center_base_dir_turn, center_axis, random_angle);
             ph = atan2(new_direction.z, new_direction.x);
@@ -236,8 +237,6 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
 
     // Make a step
     float3 dp = float3(sin(th) * cos(ph), cos(th), sin(th) * sin(ph)) * move_distance * (0.1 + 0.9 * distance_scaling_factor);
-    // float3 dp = float3(sin(th) * cos(ph), cos(th), sin(th) * sin(ph)) * move_distance;
-    
     x += dp.x;
     y += dp.y;
     z += dp.z;
@@ -250,11 +249,8 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
     // Check if the particle is inactive and needs to be reset
     const float w_f = 0.9;
     const float n_agents_M = float(n_agents) / 1.0e6;
-    const float thr_f = 0.25 * n_agents_M * deposit_value + 0.5e-3 * n_agents_M;
-    // const float thr_f = 0.25 * deposit_value + 0.5e-3; // For 1M agents
-    // const float thr_f = 0.5 * deposit_value + 1.0e-3; // For 2M agents
-    // const float thr_f = 2.5 * deposit_value + 5.0e-3; // For 10M agents
-    // const float thr_f = 25.0 * deposit_value + 5.0e-2; // For 100M agents
+    // const float thr_f = 0.25 * n_agents_M * deposit_value + 0.5e-3 * n_agents_M;
+    const float thr_f = 0.05 * n_agents_M * deposit_value + 0.1e-3 * n_agents_M;
     current_deposit = tex_deposit[uint3(x, y, z)];
     particle_weight = w_f * particle_weight + (1.0-w_f) * current_deposit;
     #ifdef AGENT_REROUTING
@@ -281,9 +277,8 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
     particles_weights[idx] = particle_weight;
 
     tex_deposit[uint3(x, y, z)] += deposit_value; // NOT ATOMIC!
+
     // tex_trace[uint3(x, y, z)] += (1.0 / normalization_factor) * distance_scaling_factor; // NOT ATOMIC!
     tex_trace[uint3(x, y, z)] += float4((1.0 / normalization_factor) * distance_scaling_factor, abs(center_axis.x), abs(center_axis.y), abs(center_axis.z)); // NOT ATOMIC!
-    // if (idx < 840670 + 100)
-        // tex_trace[uint3(x, y, z)] += float4(100.0 * distance_scaling_factor, 0.0, 0.0, 0.0);
 }
 
