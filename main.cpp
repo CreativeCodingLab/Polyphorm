@@ -20,20 +20,21 @@
 //====================================================================
 
 //*** Work regimes: Uncomment exactly one!
-#define REGIME_SDSS
+// #define REGIME_SDSS
 // #define REGIME_FRB
-// #define REGIME_TNG
+#define REGIME_TNG
 // #define REGIME_BOLSHOI_PLANCK
 // #define REGIME_ROCKSTAR
 // #define REGIME_POISSON
 // #define REGIME_CONNECTOME
 // #define REGIME_EMBEDDING
+// #define REGIME_ZOE
 
 //*** Enable velocity analysis, which will change the trace volume from <half> to <half4>
 //*** with the extra 3 channels storing the equilibrium mean unsigned orientation of the agents
 // #define VELOCITY_ANALYSIS
 
-#define HALO_COLOR_ANALYSIS
+// #define HALO_COLOR_ANALYSIS
 
 //*** How to initialize the agents in their 3D domain: Uncomment exactly one!
 #define AGENTS_INIT_AROUND_DATA
@@ -72,11 +73,13 @@ const float SAMPLING_EXPONENT = 3.0;
 #endif
 
 #ifdef REGIME_TNG
-#define DATASET_NAME "data/TNG/tng100-1_allSubHalos_spinEtc_t=0.0"
+// #define DATASET_NAME "data/TNG/tng100-1_allSubHalos_spinEtc_t=0.001_blue=63061_red=66060"
+#define DATASET_NAME "data/TNG/tng100-1_allSubHalos_spinEtc_t=0.01_nocolor"
 #define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
+// #define COLOR_PALETTE_TRACE "data/palette_magma.tga"
 #define COLOR_PALETTE_DATA "data/palette_hot.tga"
 const float SENSE_SPREAD = 20.0;
-const float SENSE_DISTANCE = 2.55;
+const float SENSE_DISTANCE = 2.35;
 const float MOVE_ANGLE = 10.0;
 const float MOVE_DISTANCE = 0.1;
 const float AGENT_DEPOSIT = 0.0;
@@ -139,6 +142,19 @@ const float PERSISTENCE = 0.91;
 const float SAMPLING_EXPONENT = 3.5;
 #endif
 
+#ifdef REGIME_ZOE
+#define DATASET_NAME "data/ZOE/64-clean-JT-3Dskan_nobottom_n=38102"
+#define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
+#define COLOR_PALETTE_DATA "data/palette_hot.tga"
+const float SENSE_SPREAD = 20.0;
+const float SENSE_DISTANCE = 1.37;
+const float MOVE_ANGLE = 10.0;
+const float MOVE_DISTANCE = 0.04;
+const float AGENT_DEPOSIT = 0.0;
+const float PERSISTENCE = 0.91;
+const float SAMPLING_EXPONENT = 3.5;
+#endif
+
 // Other hardwired settings ==========================================
 const int32_t THREAD_GROUP_SIZE = 1000; // Divisible by 10! Must align with settings inside the agent shader!
 const uint32_t N_HISTOGRAM_BINS = 17; // Must align with settings inside the histo shader!
@@ -180,6 +196,7 @@ enum VisualizationMode {
     VM_VOLUME_HIGHLIGHT,
     VM_VOLUME_OVERDENSITY,
     VM_VOLUME_VELOCITY,
+    VM_VOLUME_HALOCOLOR,
     VM_PARTICLES,
     VM_PATH_TRACING
 };
@@ -321,7 +338,7 @@ int main(int argc, char **argv)
     std::ifstream metadata_file;
     metadata_file.open((filename + "_metadata.txt").c_str(), std::ofstream::in);
     if (!metadata_file.good()) {
-        printf("Metadata file missing!\n\n");
+        printf("Data or metadata file missing!\n\n");
         return 0;
     }
     float data_x_min, data_x_max, data_y_min, data_y_max, data_z_min, data_z_max;
@@ -437,6 +454,13 @@ int main(int argc, char **argv)
     assert(graphics::is_ready(&ps_volume_highlight));
     printf("ps_volume_highlight shader compiled...\n");
 
+    // Volume shader for highlighting AOIs
+    File ps_volume_halocolor_file = file_system::read_file("ps_volume_halocolor.hlsl"); 
+    PixelShader ps_volume_halocolor = graphics::get_pixel_shader_from_code((char *)ps_volume_halocolor_file.data, ps_volume_halocolor_file.size);
+    file_system::release_file(ps_volume_halocolor_file);
+    assert(graphics::is_ready(&ps_volume_halocolor));
+    printf("ps_volume_halocolor shader compiled...\n");
+
     // Volume shader for segmenting overdensities
     File ps_volume_overdensity_file = file_system::read_file("ps_volume_overdensity.hlsl"); 
     PixelShader ps_volume_overdensity = graphics::get_pixel_shader_from_code((char *)ps_volume_overdensity_file.data, ps_volume_overdensity_file.size);
@@ -507,8 +531,13 @@ int main(int argc, char **argv)
     printf("ps_volpath shader compiled...\n");
 
     // Textures for the simulation
+    #ifdef HALO_COLOR_ANALYSIS
+    Texture3D trail_tex_A = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16G16_FLOAT, 4);
+    Texture3D trail_tex_B = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16G16_FLOAT, 4);
+    #else
     Texture3D trail_tex_A = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
     Texture3D trail_tex_B = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16_FLOAT, 2);
+    #endif
     #ifdef VELOCITY_ANALYSIS
     Texture3D trace_tex = graphics::get_texture3D(NULL, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, DXGI_FORMAT_R16G16B16A16_FLOAT, 8);
     #else
@@ -547,12 +576,20 @@ int main(int argc, char **argv)
 
             // These are the data points, read from input
             if (i < data_count) {
+                #ifdef HALO_COLOR_ANALYSIS
+                int start_index = int(5*i);
+                #else
                 int start_index = int(4*i);
+                #endif
 
                 float x = input_data[start_index];
                 float y = input_data[start_index + 1];
                 float z = input_data[start_index + 2];
                 float weight = input_data[start_index + 3];
+                float color = 0.0;
+                #ifdef HALO_COLOR_ANALYSIS
+                color = input_data[start_index + 4];
+                #endif
 
                 px[i] = world_to_grid(x, wx, cx, float(gx));
                 py[i] = world_to_grid(y, wy, cy, float(gy));
@@ -564,7 +601,7 @@ int main(int argc, char **argv)
                     pw[i] = weight;
 
                 pt[i] = -5.0; // Marker value for input data
-                pp[i] = 0.0;
+                pp[i] = color; // Halo color flag (-1 ~ red, +1 ~ blue)
             }
 
             // These are free-flowing physarum agents
@@ -834,8 +871,8 @@ int main(int argc, char **argv)
             rendering_config.camera_z = eye_pos.z;
             rendering_config.camera_offset_x = camera_offset.x;
             rendering_config.camera_offset_y = camera_offset.y;
-            // if (CAMERA_FOV <= 0.0)
-                // rendering_config.projection = math::get_orthographics_projection_dx_rh(-0.28 * radius * aspect_ratio, 0.28 * radius * aspect_ratio, -0.28 * radius, 0.28 * radius, 0.01, 10.0);
+            if (CAMERA_FOV <= 0.0)
+                rendering_config.projection = math::get_orthographics_projection_dx_rh(-0.28 * radius * aspect_ratio, 0.28 * radius * aspect_ratio, -0.28 * radius, 0.28 * radius, 0.01, 10.0);
 
             if (input::key_pressed(KeyCode::ESC)) is_running = false; 
             if (input::key_pressed(KeyCode::F1)) show_ui = !show_ui; 
@@ -1121,6 +1158,7 @@ int main(int argc, char **argv)
             }
             else if (vis_mode == VisualizationMode::VM_VOLUME
                   || vis_mode == VisualizationMode::VM_VOLUME_HIGHLIGHT
+                  || vis_mode == VisualizationMode::VM_VOLUME_HALOCOLOR
                   || vis_mode == VisualizationMode::VM_VOLUME_OVERDENSITY
                   || vis_mode == VisualizationMode::VM_VOLUME_VELOCITY) {
                 graphics::set_vertex_shader(&vertex_shader);
@@ -1133,11 +1171,18 @@ int main(int argc, char **argv)
                 }
                 else if (vis_mode == VisualizationMode::VM_VOLUME_HIGHLIGHT) {
                     graphics::set_pixel_shader(&ps_volume_highlight);
-                    if (is_a) {
+                    if (is_a)
                         graphics::set_texture(&trail_tex_A, 1);
-                    } else {
+                    else
                         graphics::set_texture(&trail_tex_B, 1);
-                    }
+                    graphics::set_texture_sampler(&tex_sampler_deposit, 1);
+                }
+                else if (vis_mode == VisualizationMode::VM_VOLUME_HALOCOLOR) {
+                    graphics::set_pixel_shader(&ps_volume_halocolor);
+                    if (is_a)
+                        graphics::set_texture(&trail_tex_A, 1);
+                    else
+                        graphics::set_texture(&trail_tex_B, 1);
                     graphics::set_texture_sampler(&tex_sampler_deposit, 1);
                 }
                 else if (vis_mode == VisualizationMode::VM_VOLUME_OVERDENSITY) {
@@ -1468,6 +1513,19 @@ int main(int argc, char **argv)
                 rendering_config.overdensity_threshold_high = math::pow(HISTOGRAM_BASE, odt_high);
             }
 
+            #ifdef HALO_COLOR_ANALYSIS
+            is_toggled = vis_mode == VisualizationMode::VM_VOLUME_HALOCOLOR;
+            ui::add_toggle(&panel, "VIS: HALO COLOR", &is_toggled);
+            vis_mode = is_toggled? VisualizationMode::VM_VOLUME_HALOCOLOR : vis_mode;
+            if (vis_mode == VisualizationMode::VM_VOLUME_HALOCOLOR) {
+                ui::add_slider(&panel, "OPTI THICKNESS", &rendering_config.optical_thickness, 0.0, 1.0);
+                float trd = log(rendering_config.trim_density) / log(HISTOGRAM_BASE);
+                reset_pt |= ui::add_slider(&panel, "TRIM DENSITY", &trd, -5.0, 9.0);
+                rendering_config.trim_density = math::pow(HISTOGRAM_BASE, trd);
+                ui::add_slider(&panel, "BACKGROUND COL", &background_color, 0.0, 1.0);
+            }
+            #endif
+
             #ifdef VELOCITY_ANALYSIS
             is_toggled = vis_mode == VisualizationMode::VM_VOLUME_VELOCITY;
             ui::add_toggle(&panel, "VIS: VELOCITY", &is_toggled);
@@ -1536,6 +1594,7 @@ int main(int argc, char **argv)
     graphics::release(&pixel_shader);
     graphics::release(&ps_volume_overdensity);
     graphics::release(&ps_volume_highlight);
+    graphics::release(&ps_volume_halocolor);
     graphics::release(&vertex_shader);
     graphics::release(&pixel_shader_2d);
     graphics::release(&vertex_shader_2d);

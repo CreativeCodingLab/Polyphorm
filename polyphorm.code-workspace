@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"xstring": "cpp",
+			"xutility": "cpp",
+			"cmath": "cpp"
+		}
+	}
+}

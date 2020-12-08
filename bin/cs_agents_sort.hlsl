@@ -73,6 +73,7 @@ void swap_agents(uint idxA, uint idxB) {
     tmp = particles_weights[idxA]; particles_weights[idxA] = particles_weights[idxB]; particles_weights[idxB] = tmp;
 }
 
+// Morton codes: https://fgiesen.wordpress.com/2009/12/13/decoding-morton-codes/
 uint Part1By2(uint x_) {
     uint x = x_ & 0x000003ff;
     x = (x ^ (x << 16)) & 0xff0000ff;

@@ -1,4 +1,4 @@
-RWTexture3D<half> tex_deposit: register(u0);
+RWTexture3D<half2> tex_deposit: register(u0);
 RWTexture3D<half4> tex_trace: register(u1);
 
 RWStructuredBuffer<float> particles_x: register(u2);
@@ -95,10 +95,14 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
     float th = particles_theta[idx];
     float ph = particles_phi[idx];
     float particle_weight = particles_weights[idx];
+
+    // Handle data-representing agents first
     bool is_data = (th < -1.0);
     if (is_data) {
         #ifndef IGNORE_DATA
-        tex_deposit[uint3(x, y, z)] += 10.0 * particle_weight; // NOT ATOMIC!
+        float deposit = 10.0 * particle_weight;
+        float color = (ph < -0.001) ? -1.0 : ((ph > 0.001) ? 1.0 : 0.0);
+        tex_deposit[uint3(x, y, z)] += float2(deposit, color * deposit); // NOT ATOMIC!
         #endif
         return;
     }
@@ -276,7 +280,7 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
     particles_phi[idx] = ph;
     particles_weights[idx] = particle_weight;
 
-    tex_deposit[uint3(x, y, z)] += deposit_value; // NOT ATOMIC!
+    tex_deposit[uint3(x, y, z)] += float2(deposit_value, 0.0); // NOT ATOMIC!
 
     // tex_trace[uint3(x, y, z)] += (1.0 / normalization_factor) * distance_scaling_factor; // NOT ATOMIC!
     tex_trace[uint3(x, y, z)] += float4((1.0 / normalization_factor) * distance_scaling_factor, abs(center_axis.x), abs(center_axis.y), abs(center_axis.z)); // NOT ATOMIC!

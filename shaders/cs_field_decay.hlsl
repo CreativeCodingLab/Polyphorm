@@ -1,5 +1,5 @@
-RWTexture3D<half> tex_in: register(u0);
-RWTexture3D<half> tex_out: register(u1);
+RWTexture3D<half2> tex_in: register(u0);
+RWTexture3D<half2> tex_out: register(u1);
 RWTexture3D<half4> tex_trace: register(u2);
 
 cbuffer ConfigBuffer : register(b0)
@@ -61,18 +61,18 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 
     // Average deposit values in a 3x3x3 neighborhood
     // Apply distance-based weighting to prevent overestimation along diagonals
-    float v = 0.0;
+    float2 v = float2(0.0, 0.0);
     float w = 0.0;
     for (int dx = -1; dx <= 1; dx++) {
         for (int dy = -1; dy <= 1; dy++) {
             for (int dz = -1; dz <= 1; dz++) {
-                // float weight = 1.0 / sqrt(float(1 + abs(dx) + abs(dy) + abs(dz)));
                 float weight = (all(int3(dx,dy,dz)) == 0)? 1.0 : 1.0 / sqrt(float(abs(dx) + abs(dy) + abs(dz)));
                 int3 txcoord = int3(p) + int3(dx, dy, dz);
                 txcoord.x = txcoord.x % world_width;
                 txcoord.y = txcoord.y % world_height;
                 txcoord.z = txcoord.z % world_depth;
-                v += weight * tex_in[txcoord];
+                float2 val = tex_in[txcoord];
+                v += weight * val;
                 w += weight;
             }
         }
@@ -87,7 +87,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     // tex_trace[p] *= 0.99;
     RNG rng;
     rng.set_seed(
-        rng.wang_hash(uint(113.0*v)),
+        rng.wang_hash(uint(113.0*v.x)),
         rng.wang_hash(uint(p.x*p.y*p.z))
     );
     tex_trace[p] *= 0.985 + 0.01 * rng.random_float(); // avoid quantization errors of a constant decay factor
