@@ -35,7 +35,7 @@ cbuffer ConfigBuffer : register(b4)
 };
 
 #define COLOR_UNDERDENSE float4(0.0, 0.0, 25.0, 0.08)
-#define COLOR_MEDDENSE float4(0.0, 2.0, 0.0, 0.06)
+#define COLOR_MIDDENSE float4(0.0, 2.0, 0.0, 0.06)
 #define COLOR_OVERDENSE float4(10.0, 0.0, 0.0, 0.15)
 
 float remap(float val, float slope)
@@ -54,11 +54,10 @@ float4 main(PixelInput input) : SV_TARGET
         fragment = 0.0.xxxx;
     }
     else {
-        trace *= 15.0; // roughly equalize with other vis modalities
         if (trace < overdensity_threshold_low)
             fragment = COLOR_UNDERDENSE;
         else if (trace >= overdensity_threshold_low && trace < overdensity_threshold_high)
-            fragment = COLOR_MEDDENSE;
+            fragment = COLOR_MIDDENSE;
         else if (trace >= overdensity_threshold_high)
             fragment = COLOR_OVERDENSE;
         fragment.rgb *= remap(2.71, sample_weight);

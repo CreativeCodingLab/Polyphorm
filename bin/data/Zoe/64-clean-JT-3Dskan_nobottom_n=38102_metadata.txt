@@ -1,0 +1,8 @@
+Number of points = 38102
+Min X = -90.60128
+Max X = 70.68778
+Min Y = -61.6432
+Max Y = 56.95748
+Min Z = -57.95948
+Max Z = -2.43354
+Mean weight = 1.0

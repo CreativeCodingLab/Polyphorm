@@ -52,11 +52,12 @@ float4 main(PixelInput input) : SV_TARGET
     }
     else {
         float t = (trace - trim_density) * sample_weight;
-        // t /= 5.0; // Compensate for the difference between Trace and Highlight vis modes
         fragment.rgb = tex_false_color.Sample(tex_false_color_sampler, float2(remap(t, 1.0), 0.5)).rgb;
     	fragment.a = optical_thickness * remap(t, 1.0);
 
         // Proxy draws config
+        // see http://geomalgorithms.com/a02-_lines.html
+        
         // float3 o = float3(0.9321, 0.5179, 0.1403); // for SDSS_huge
         // float3 v_l = float3(0.2175, 0.4660, 0.4807) - o; // for SDSS_huge
 

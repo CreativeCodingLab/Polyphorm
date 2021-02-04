@@ -49,13 +49,12 @@ float4 main(PixelInput input) : SV_TARGET
     }
 	else {
 		float trace = tex_trace.Sample(tex_trace_sampler, input.texcoord_out.xyz);
-		float t = sample_weight * trace;
+		float t = sample_weight * (trace - trim_density);
 		float deposit = tex_deposit.Sample(tex_deposit_sampler, input.texcoord_out.xyz);
-		// float d = galaxy_weight * deposit;
-		float d = deposit > trim_density ? galaxy_weight * deposit : 0.0;
+		float d = galaxy_weight * deposit;
 		
-		fragment.rgb = remap(t, 0.3) * float3(0.0, 2.1, 15.0) + remap(d, 0.2) * float3(1.0, 0.05, 0.0);
-		// fragment.rgb = remap(t, 0.3) * float3(0.6, 0.05, 0.9) + remap(d, 0.2) * float3(1.0, 0.6, 0.0);
+		// fragment.rgb = remap(t, 0.3) * float3(0.0, 2.1, 15.0) + remap(d, 0.2) * float3(1.0, 0.05, 0.0);
+		fragment.rgb = remap(t, 0.3) * float3(0.6, 0.05, 0.9) + remap(d, 0.2) * float3(1.0, 0.6, 0.0);
 		fragment.a = (0.2*t + 0.1*d) * optical_thickness;
 
 		float highlight_low = highlight_density / sqrt(histogram_base);
@@ -63,8 +62,8 @@ float4 main(PixelInput input) : SV_TARGET
 		// float highlight_low = highlight_density / sqrt(pow(histogram_base, 0.4));
 		// float highlight_high = highlight_density * sqrt(pow(histogram_base, 0.4));
 		if (trace > highlight_low && trace < highlight_high) {
-			float smooth_weight = smoothstep(highlight_low, highlight_low + 0.2 * (highlight_high-highlight_low), trace)
-						* (1.0 - smoothstep(highlight_high - 0.2 * (highlight_high-highlight_low), highlight_high, trace));
+			float smooth_weight = smoothstep(highlight_low, highlight_low + 0.1 * (highlight_high-highlight_low), trace)
+						* (1.0 - smoothstep(highlight_high - 0.1 * (highlight_high-highlight_low), highlight_high, trace));
 			fragment.rgb = (1.0-smooth_weight) * fragment.rgb
 							+ smooth_weight * remap(trace, 10.0) * float3(0.0, 1.0, 0.0);
 			fragment.a = (1.0-smooth_weight) * fragment.a

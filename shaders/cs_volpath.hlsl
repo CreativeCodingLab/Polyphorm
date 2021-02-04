@@ -435,6 +435,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         // If there's significant scattering, we need the full path-traced solution
             rd = normalize(rd);
             path_L = get_incident_L(rp, rd, c_low_trimmed, c_high_trimmed, n_bounces + 1, rng);
+            path_L *= PI2;
         }
     } else {
         path_L = get_sky_L(rd);
