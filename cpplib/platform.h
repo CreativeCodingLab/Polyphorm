@@ -2,16 +2,6 @@
 #include <Windows.h>
 #include <stdint.h>
 
-#define IS_WINDOW_VALID(window) (!(window.window_handle == INVALID_HANDLE_VALUE))
-
-// Represents current window
-struct Window
-{
-	HWND window_handle;
-	uint32_t window_width;
-	uint32_t window_height;
-};
-
 /////////////////////////////////////////
 // Event system specific structures
 /////////////////////////////////////////
@@ -35,30 +25,31 @@ while(platform::get_event(&event)) // Get all the events accumulated since the l
 */
 
 // All the event types
-enum EventType
-{
+enum EventType {
 	EMPTY = 0,
 	MOUSE_MOVE,
 	MOUSE_LBUTTON_DOWN,
 	MOUSE_LBUTTON_UP,
 	MOUSE_RBUTTON_DOWN,
-	MOUSE_RBUTTON_UP,	
+	MOUSE_RBUTTON_UP,
 	KEY_DOWN,
 	KEY_UP,
+	CHAR_ENTERED,
 	MOUSE_WHEEL,
+	WINDOW_RESIZED,
 	EXIT
 };
 
 // Event specific data structures
 
-struct MouseMoveData
-{
+struct MouseMoveData {
 	float x;
 	float y;
+	float screen_x;
+	float screen_y;
 };
 
-enum KeyCode
-{
+enum KeyCode {
 	ESC = 0,
 	F1,
 	F2,
@@ -70,28 +61,43 @@ enum KeyCode
 	F8,
 	F9,
 	F10,
+	ALT,
 	NUM1,
 	NUM2,
 	NUM3,
 	NUM4,
 	NUM5,
 	NUM6,
+	LEFT,
+	RIGHT,
+	SPACE,
 	OTHER,
+	DEL,
+	ENTER,
+	BACKSPACE,
+	HOME,
+	END,
+	W,
+	A,
+	S,
+	D
 };
 
-struct KeyPressedData
-{
+struct KeyPressedData {
 	KeyCode code;
 };
 
-struct MouseWheelData
-{
+struct MouseWheelData {
 	float delta;
 };
 
+struct WindowResizedData {
+	float window_width;
+	float window_height;
+};
+
 // Event data struct
-struct Event
-{
+struct Event {
 	EventType type;
 	char data[32] = {};
 };
@@ -100,17 +106,19 @@ struct Event
 typedef LARGE_INTEGER Ticks;
 
 // `platform` namespace handles interfacing with windows API, with the exception of file system interface
-namespace platform
-{
+namespace platform {
 	// Create and return windows with specific name and dimensions
-	Window get_window(char *window_name, uint32_t window_width, uint32_t window_height);
-	bool set_window_title(Window &window, const char *window_title);
+	HWND get_window(char *window_name, uint32_t window_width, uint32_t window_height);
+	bool set_window_title(HWND, const char *window_title);
+
+	// Get existing window.
+	HWND get_existing_window(char *window_name);
 
 	// Check if window is valid
-	bool is_window_valid(Window *window);
+	bool is_window_valid(HWND window);
 
 	// Get next Event, should be called per frame until false is returned
-	bool get_event(Event *event);
+	bool get_event(Event *event, bool broadcast_message=false);
 
 	// Cursor manipulation interface
 	void show_cursor();
@@ -124,6 +132,9 @@ namespace platform
 
 	// Compute time difference between two Ticks (number of ticks) and a tick update frequency
 	float get_dt_from_tick_difference(Ticks t1, Ticks t2, Ticks frequency);
+
+	// Return SYSTEMTIME representing current date and time
+	SYSTEMTIME get_datetime();
 }
 
 /////////////////////////////////////////
@@ -131,14 +142,12 @@ namespace platform
 /////////////////////////////////////////
 
 // Timer is used for simple timing purposes
-struct Timer
-{
+struct Timer {
     Ticks frequency;
     Ticks start;
 };
 
-namespace timer
-{
+namespace timer {
 	// Create a new timer
     Timer get();
 
@@ -151,3 +160,7 @@ namespace timer
 	// Return the time since the start and start measuring time from now
     float checkpoint(Timer *timer);
 }
+
+#ifdef CPPLIB_PLATFORM_IMPL
+#include "platform.cpp"
+#endif

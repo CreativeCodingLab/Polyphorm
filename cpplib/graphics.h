@@ -1,15 +1,12 @@
 #pragma once
 #include <D3D11.h>
 #include <dxgi.h>
-#include <DirectXTex.h>
-//#include <DDSTextureLoader.h>
+#include <stdint.h>
 #include <string>
-
-#include "platform.h"
+#include <DirectXTex.h>
 
 // GraphicsContext wraps handles to D3D device and context
-struct GraphicsContext
-{
+struct GraphicsContext {
 	ID3D11Device *device;
 	ID3D11DeviceContext *context;
 };
@@ -22,26 +19,24 @@ extern GraphicsContext *graphics_context;
 /// D3D11 structures
 ////////////////////////////////////////////////////////////
 
-struct SwapChain
-{
+struct SwapChain {
 	IDXGISwapChain *swap_chain;
 };
 
 // Render target can be used both as render target and shader resource view.
 // Exception to this is RenderTarget obtained by calling get_render_target_window, which
 // cannot be used as a shader resource view.
-struct RenderTarget
-{
+struct RenderTarget {
 	ID3D11RenderTargetView *rt_view;
 	ID3D11ShaderResourceView *sr_view;
 	ID3D11Texture2D *texture;
 	uint32_t width;
 	uint32_t height;
+	DXGI_FORMAT format;
 };
 
 // Depth buffer can be used both as depth buffer (target) and shader resource view.
-struct DepthBuffer
-{
+struct DepthBuffer {
 	ID3D11DepthStencilView *ds_view;
 	ID3D11ShaderResourceView *sr_view;
 	ID3D11Texture2D *texture;
@@ -49,8 +44,7 @@ struct DepthBuffer
 	uint32_t height;
 };
 
-struct Texture2D
-{
+struct Texture2D {
 	ID3D11Texture2D *texture;
 	ID3D11ShaderResourceView *sr_view;
 	ID3D11UnorderedAccessView *ua_view;
@@ -58,8 +52,7 @@ struct Texture2D
 	uint32_t height;
 };
 
-struct Texture3D
-{
+struct Texture3D {
 	ID3D11Texture3D *texture;
 	ID3D11ShaderResourceView *sr_view;
 	ID3D11UnorderedAccessView *ua_view;
@@ -69,8 +62,7 @@ struct Texture3D
 };
 
 // Mesh references GPU-side memory with vertices and indices
-struct Mesh
-{
+struct Mesh {
 	ID3D11Buffer *vertex_buffer;
 	ID3D11Buffer *index_buffer;
 	uint32_t vertex_stride;
@@ -82,36 +74,37 @@ struct Mesh
 };
 
 // Vertex shader encapsulates both D3D vertex shader and input layou
-struct VertexShader
-{
+struct VertexShader {
 	ID3D11VertexShader *vertex_shader;
 	ID3D11InputLayout *input_layout;
 };
 
-struct GeometryShader
-{
+struct GeometryShader {
 	ID3D11GeometryShader *geometry_shader;
 };
 
-struct ComputeShader
-{
+struct ComputeShader {
 	ID3D11ComputeShader *compute_shader;
 };
 
-struct PixelShader
-{
+struct PixelShader {
 	ID3D11PixelShader *pixel_shader;
 };
 
-struct ConstantBuffer
-{
+struct ConstantBuffer {
 	ID3D11Buffer *buffer;
 	uint32_t size;
 };
 
 // TODO: Maybe unify with ConstantBuffer?
-struct StructuredBuffer
-{
+struct StructuredBuffer {
+	ID3D11Buffer *buffer;
+	ID3D11UnorderedAccessView *ua_view;
+	ID3D11ShaderResourceView *sr_view;
+	uint32_t size;
+};
+
+struct ByteAddressBuffer {
 	ID3D11Buffer *buffer;
 	ID3D11UnorderedAccessView *ua_view;
 	uint32_t size;
@@ -124,51 +117,50 @@ struct StructuredBuffer
 // in vertex shader input translates to VertexInputDesc with
 // .semantic_name = "POSITION" and .format = DXGI_R32G32B32A32_FLOAT
 //
-const uint32_t MAX_SEMANTIC_NAME_LENGTH = 10;
-struct VertexInputDesc
-{
+const uint32_t MAX_SEMANTIC_NAME_LENGTH = 40;
+struct VertexInputDesc {
 	char semantic_name[MAX_SEMANTIC_NAME_LENGTH];
 	DXGI_FORMAT format;
 };
 
 // Compiled shader represents shader byte code, compiled from source code.
-struct CompiledShader
-{
+struct CompiledShader {
 	ID3DBlob *blob;
 };
 
 // Sample modes for the texture sampling.
-enum SampleMode
-{
+enum SampleMode {
 	CLAMP = 0,
 	WRAP,
 	BORDER,
 };
 
-struct TextureSampler
-{
+struct TextureSampler {
 	ID3D11SamplerState *sampler;
 };
 
 #undef OPAQUE
-enum BlendType
-{
+enum BlendType {
 	ALPHA = 0,
 	OPAQUE = 1
 };
 
-enum RasterType
-{
+enum RasterType {
 	SOLID = 0,
 	WIREFRAME = 1
 };
 
-struct Viewport
-{
+struct Viewport {
 	float x;
 	float y;
 	float width;
 	float height;
+};
+
+struct ProfilingBlock {
+	ID3D11Query *start;
+	ID3D11Query *end;
+	ID3D11Query *disjoint;
 };
 
 //////////////////////////////////////////
@@ -176,8 +168,7 @@ struct Viewport
 //////////////////////////////////////////
 
 // `graphics` namespace contains functions that provide mid-level API on top of D3D11
-namespace graphics
-{
+namespace graphics {
 	// Initialize graphics context and blending states
 	//
 	// Args:
@@ -185,20 +176,22 @@ namespace graphics
 	bool init(LUID *adapter_luid = NULL);
 
 	// Initialize swap chain for rendering to window
-	bool init_swap_chain(Window *window);
-	
+	bool init_swap_chain(HWND window, uint32_t window_width, uint32_t window_height);
+
+	// Resize swap chain to specific size.
+	bool resize_swap_chain(uint32_t window_width, uint32_t window_height);
 
 	// Get RenderTarget to use for rendering directly to a window passed in to `init_swap_chain`
-	RenderTarget get_render_target_window();
+	RenderTarget get_render_target_window(bool srgb=true);
 
 	// Get RenderTarget with specified width, height and format
-	RenderTarget get_render_target(uint32_t width, uint32_t height, DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM);
+	RenderTarget get_render_target(uint32_t width, uint32_t height, DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM, uint32_t num_samples = 1);
 
 	// Clear RenderTarget to a specified color
 	void clear_render_target(RenderTarget *buffer, float r, float g, float b, float a);
 
 	// Get Depth Buffer with specified width and height
-	DepthBuffer get_depth_buffer(uint32_t width, uint32_t height);
+	DepthBuffer get_depth_buffer(uint32_t width, uint32_t height, uint32_t num_samples = 1);
 
 	// Clear depth buffer to zeros
 	void clear_depth_buffer(DepthBuffer *buffer);
@@ -237,7 +230,13 @@ namespace graphics
 	//  - height: bitmap height
 	//  - format: DXGI format
 	//  - pixel_byte_count: number of bytes per pixel. Used to compute memory pitch.
-	Texture2D get_texture2D(void *data, uint32_t width, uint32_t height, DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM, uint32_t pixel_byte_count = 4);
+	Texture2D get_texture2D(void *data, uint32_t width, uint32_t height, DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM, uint32_t pixel_byte_count = 4, bool staging=false);
+
+	// Clear texture with uint values.
+	void clear_texture(Texture2D *texture, uint32_t r = 0, uint32_t g = 0, uint32_t b = 0, uint32_t a = 0);
+
+	// Clear texture with float values. Only valid for textures with float format.
+	void clear_texture(Texture2D *texture, float r = 0, float g = 0, float b = 0, float a = 0);
 
 	// Set RenderTarget as a texture accessible from shaders
 	void set_texture(RenderTarget *buffer, uint32_t slot);
@@ -250,11 +249,9 @@ namespace graphics
 
 	// Set texture to be accessible from compute shaders
 	void set_texture_compute(Texture2D *texture, uint32_t slot);
-	void set_texture_sampled_compute(Texture2D *texture, uint32_t slot);
 
 	// Clear specific compute texture slot.
 	void unset_texture_compute(uint32_t slot);
-	void unset_texture_sampled_compute(uint32_t slot);
 
 	// Clear specific texture slot
 	void unset_texture(uint32_t slot);
@@ -267,7 +264,7 @@ namespace graphics
 	//  - depth: bitmap depth
 	//  - format: DXGI format
 	//  - pixel_byte_count: number of bytes per pixel. Used to compute memory pitch.
-	Texture3D get_texture3D(void *data, uint32_t width, uint32_t height, uint32_t depth, DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM, uint32_t pixel_byte_count = 4);
+	Texture3D get_texture3D(void *data, uint32_t width, uint32_t height, uint32_t depth, DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM, uint32_t pixel_byte_count = 4, bool staging=false);
 
 	// Load/save texture to/from file
 	Texture2D load_texture2D(std::string filename);
@@ -279,8 +276,15 @@ namespace graphics
 	void set_texture(Texture3D *texture, uint32_t slot);
 
 	// Set texture to be accessible from compute shaders
+	void set_texture_compute(Texture2D *texture, uint32_t slot);
+	void set_texture_sampled_compute(Texture2D *texture, uint32_t slot);
+
 	void set_texture_compute(Texture3D *texture, uint32_t slot);
 	void set_texture_sampled_compute(Texture3D *texture, uint32_t slot);
+
+	// Clear specific compute texture slot.
+	void unset_texture_compute(uint32_t slot);
+	void unset_texture_sampled_compute(uint32_t slot);
 
 	// Set blending state
 	void set_blend_state(BlendType type);
@@ -295,7 +299,7 @@ namespace graphics
 	RasterType get_rasterizer_state();
 
 	// Get TextureSampler with specific mode
-	TextureSampler get_texture_sampler(SampleMode mode = CLAMP, D3D11_FILTER filter = D3D11_FILTER_MIN_MAG_MIP_POINT);
+	TextureSampler get_texture_sampler(SampleMode mode = CLAMP, bool bilinear_filter = true);
 
 	// Set TextureSampler to specific slot
 	void set_texture_sampler(TextureSampler *sampler, uint32_t slot);
@@ -305,17 +309,26 @@ namespace graphics
 	Mesh get_mesh(void *vertices, uint32_t vertex_count, uint32_t vertex_stride, void *indices, uint32_t index_count,
 				  uint32_t index_byte_size, D3D11_PRIMITIVE_TOPOLOGY topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+	// Get Mesh from ByteAddressBuffer
+	Mesh get_mesh(ByteAddressBuffer buffer, uint32_t vertex_count, uint32_t vertex_stride, D3D11_PRIMITIVE_TOPOLOGY topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 	// Draw a Mesh
 	void draw_mesh(Mesh *mesh);
+
+	// Draw multiple Mesh instances
+	void draw_mesh_instanced(Mesh *mesh, int instance_count);
 
 	// Get ConstantBuffer with specific size
 	ConstantBuffer get_constant_buffer(uint32_t size);
 
-	// Get StructuredBuffer
-	StructuredBuffer get_structured_buffer(int element_stride, int num_elements);
-
 	// Download a structured buffer from GPU to preallocated CPU memory
 	void capture_structured_buffer(StructuredBuffer *buffer, void *mapped_data, unsigned int num_elements, size_t element_size);
+
+	// Get StructuredBuffer
+	StructuredBuffer get_structured_buffer(int element_stride, int num_elements, bool staging=false);
+
+	// Get ByteAddressBuffer
+	ByteAddressBuffer get_byte_address_buffer(int size);
 
 	// Update ConstantBuffer with data
 	void update_constant_buffer(ConstantBuffer *buffer, void *data);
@@ -329,17 +342,35 @@ namespace graphics
 	// Set StructuredBuffer to a slot
 	void set_structured_buffer(StructuredBuffer *buffer, uint32_t slot);
 
+	// Unset StructuredBuffer slot;
+	void unset_structured_buffer(uint32_t slot);
+
+	// Set ByteAddressBuffer to a slot
+	void set_byte_address_buffer(ByteAddressBuffer *buffer, uint32_t slot);
+
+	// Copy resources.
+	// Should be used to copy from GPU-only to staging resources.
+	void copy_resource(StructuredBuffer *src, StructuredBuffer *dst);
+
+	// Resolve render targets.
+	// Should be used for "copying" from multisampled to non-ms targets.
+	void resolve_render_targets(RenderTarget *src, RenderTarget *dst);
+
+	// Read GPU resource.
+	// Should be used only with staging resources.
+	void *read_resource(StructuredBuffer *buffer, void *data=NULL);
+
 	// Compile a vertex shader from a source code
-	CompiledShader compile_vertex_shader(void *source, uint32_t source_size);
+	CompiledShader compile_vertex_shader(void *source, uint32_t source_size, char **macro_defines = NULL, uint32_t macro_defines_count = 0);
 	
 	// Compile a pixel shader from a source code
-	CompiledShader compile_pixel_shader(void *source, uint32_t source_size);
+	CompiledShader compile_pixel_shader(void *source, uint32_t source_size, char **macro_defines = NULL, uint32_t macro_defines_count = 0);
 	
 	// Compile a geometry shader from a source code
-	CompiledShader compile_geometry_shader(void *source, uint32_t source_size);
+	CompiledShader compile_geometry_shader(void *source, uint32_t source_size, char **macro_defines = NULL, uint32_t macro_defines_count = 0);
 
 	// Compile a compute shader from a source code
-	CompiledShader compile_compute_shader(void *source, uint32_t source_size);
+	CompiledShader compile_compute_shader(void *source, uint32_t source_size, char **macro_defines = NULL, uint32_t macro_defines_count = 0);
 
 	// Get VertexShader from a CompiledShader and number of VertexInputDescs
 	VertexShader get_vertex_shader(CompiledShader *compiled_shader, VertexInputDesc *vertex_input_descs, uint32_t vertex_input_count);
@@ -420,11 +451,21 @@ namespace graphics
 	void release(Mesh *mesh);
 	void release(ConstantBuffer *buffer);
 	void release(StructuredBuffer *buffer);
+	void release(ByteAddressBuffer *buffer);
 	void release(VertexShader *shader);
 	void release(PixelShader *shader);
 	void release(GeometryShader *shader);
 	void release(ComputeShader *shader);
 	void release(CompiledShader *shader);
+
+	////////////////////////////////////////////////
+	// Profiling API
+	////////////////////////////////////////////////
+
+	ProfilingBlock get_profiling_block();
+	void start_profiling_block(ProfilingBlock *block);
+	void end_profiling_block(ProfilingBlock *block);
+	float get_latest_profiling_time(ProfilingBlock *block);
 
 	////////////////////////////////////////////////
 	/// HIGHER LEVEL API
@@ -434,14 +475,21 @@ namespace graphics
 	// If `vertex_input_descs` is not NULL, it's filled with VertexInputDesc values. The function
 	// always returns number of vertex inputs to the shader (which is also a length of `vertex_input_descs`
 	// array).
-	uint32_t get_vertex_input_desc_from_shader(char *vertex_string, uint32_t size, VertexInputDesc *vertex_input_descs);
+	int32_t get_vertex_input_desc_from_shader(char *vertex_string, uint32_t size, VertexInputDesc *vertex_input_descs);
 
 	// Helper functions that return VertexShader directly from a vertex shader code
-	VertexShader get_vertex_shader_from_code(char *code, uint32_t code_length);
+	VertexShader get_vertex_shader_from_code(char *code, uint32_t code_length, char **macro_defines = NULL, uint32_t macro_defines_count = 0);
 	
 	// Helper functions that return PixelShader directly from a pixel shader code
-	PixelShader get_pixel_shader_from_code(char *code, uint32_t code_length);
+	PixelShader get_pixel_shader_from_code(char *code, uint32_t code_length, char **macro_defines = NULL, uint32_t macro_defines_count = 0);
 
 	// Helper functions that return ComputeShader directly from a compute shader code
-	ComputeShader get_compute_shader_from_code(char *code, uint32_t code_length);
+	ComputeShader get_compute_shader_from_code(char *code, uint32_t code_length, char **macro_defines = NULL, uint32_t macro_defines_count = 0);
+
+	// Helper function to get quad Mesh
+	Mesh get_quad_mesh();
 }
+
+#ifdef CPPLIB_GRAPHICS_IMPL
+#include "graphics.cpp"
+#endif

@@ -2,8 +2,7 @@
 #include <math.h>
 
 Vector3::Vector3(Vector4 v) :
-	x(v.x), y(v.y), z(v.z)
-{
+	x(v.x), y(v.y), z(v.z) {
 }
 
 float math::max(float a, float b) {
@@ -14,103 +13,111 @@ float math::min(float a, float b) {
 	return a <= b ? a : b;
 }
 
-float math::abs(float x)
-{
+int math::max(int a, int b) {
+	return a >= b ? a : b;
+}
+
+int math::min(int a, int b) {
+	return a <= b ? a : b;
+}
+
+float math::abs(float x) {
 	return fabsf(x);
 }
 
-float math::sin(float x)
-{
+float math::sin(float x) {
 	return sinf(x);
 }
 
-float math::cos(float x)
-{
+float math::cos(float x) {
 	return cosf(x);
 }
 
-float math::tan(float x)
-{
+float math::tan(float x) {
 	return tanf(x);
 }
 
-float math::atan2(float y, float x)
-{
+float math::atan2(float y, float x) {
 	return atan2f(y, x);
 }
 
-float math::acos(float x)
-{
+float math::acos(float x) {
 	return acosf(x);
 }
 
-float math::square(float x)
-{
+float math::square(float x) {
 	return x * x;
 }
 
-float math::sqrt(float x)
-{
+float math::sqrt(float x) {
 	return sqrtf(x);
 }
 
-float math::pow(float x, float e)
-{
+float math::pow(float x, float e) {
 	return powf(x, e);
 }
 
+float math::sign(float x) {
+	return x < 0.0f ? -1.0f : 1.0f;
+}
 
-float math::dot(Vector3 a, Vector3 b)
-{
+float math::dot(Vector2 a, Vector2 b) {
+	return a.x * b.x + a.y * b.y;
+}
+
+float math::dot(Vector3 a, Vector3 b) {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-float math::dot(Vector4 a, Vector4 b)
-{
+float math::dot(Vector4 a, Vector4 b) {
 	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 }
 
-float math::length(Vector3 x)
-{
+float math::length(Vector2 x) {
 	return math::sqrt(math::length_squared(x));
 }
 
-float math::length(Vector4 x)
-{
+float math::length(Vector3 x) {
 	return math::sqrt(math::length_squared(x));
 }
 
-float math::length_squared(Vector3 x)
-{
+float math::length(Vector4 x) {
+	return math::sqrt(math::length_squared(x));
+}
+
+float math::length_squared(Vector2 x) {
 	return math::dot(x, x);
 }
 
-float math::length_squared(Vector4 x)
-{
+float math::length_squared(Vector3 x) {
 	return math::dot(x, x);
 }
 
-float math::floor(float x)
-{
+float math::length_squared(Vector4 x) {
+	return math::dot(x, x);
+}
+
+float math::floor(float x) {
 	return floorf(x);
 }
 
-float math::deg2rad(float deg)
-{
+float math::deg2rad(float deg) {
 	float rad = deg * math::PI / 180.0f;
 	return rad;
 }
 
-float math::rad2deg(float rad)
-{
+float math::rad2deg(float rad) {
 	float deg = rad * 180.0f / math::PI;
 	return deg;
 }
 
-Vector3 math::lerp(Vector3 v1, Vector3 v2, float x)
-{
+float math::lerp(float v1, float v2, float x) {
+	return v1 * (1 - x) + v2 * x;
+}
+
+Vector3 math::lerp(Vector3 v1, Vector3 v2, float x) {
 	Vector3 result = {};
-	
+
 	result.x = v1.x * (1 - x) + v2.x * x;
 	result.y = v1.y * (1 - x) + v2.y * x;
 	result.z = v1.z * (1 - x) + v2.z * x;
@@ -118,10 +125,9 @@ Vector3 math::lerp(Vector3 v1, Vector3 v2, float x)
 	return result;
 }
 
-Vector4 math::lerp(Vector4 v1, Vector4 v2, float x)
-{
+Vector4 math::lerp(Vector4 v1, Vector4 v2, float x) {
 	Vector4 result = {};
-	
+
 	result.x = v1.x * (1 - x) + v2.x * x;
 	result.y = v1.y * (1 - x) + v2.y * x;
 	result.z = v1.z * (1 - x) + v2.z * x;
@@ -129,43 +135,36 @@ Vector4 math::lerp(Vector4 v1, Vector4 v2, float x)
 
 	return result;
 }
-	
-Vector4 math::nlerp(Vector4 v1, Vector4 v2, float x)
-{
+
+Vector4 math::nlerp(Vector4 v1, Vector4 v2, float x) {
 	Vector4 r = math::lerp(v1, v2, x);
 	return math::normalize(r);
 }
 
-Vector3 operator*(float x, Vector3 v)
-{
+Vector3 operator*(float x, Vector3 v) {
 	return v * x;
 }
 
-float math::fmod(float x, float m)
-{
+float math::fmod(float x, float m) {
 	return fmodf(x, m);
 }
 
-int32_t math::mod(int32_t x, int32_t m)
-{
+int32_t math::mod(int32_t x, int32_t m) {
 	return (x % m + m) % m;
 }
 
-Quaternion math::conjugate(Quaternion q)
-{
+Quaternion math::conjugate(Quaternion q) {
 	return Quaternion(-q.x, -q.y, -q.z, q.w);
 }
 
-Vector3 math::rotate(Vector3 v, Quaternion q)
-{
+Vector3 math::rotate(Vector3 v, Quaternion q) {
 	Vector3 qv = Vector3(q.x, q.y, q.z);
 	float s = q.w;
 	Vector3 result = 2 * math::dot(qv, v) * qv + (s * s - math::dot(qv, qv)) * v + 2 * s * math::cross(qv, v);
 	return result;
 }
 
-Vector3 math::rotate(Vector3 v, float angle, Vector3 axis)
-{
+Vector3 math::rotate(Vector3 v, float angle, Vector3 axis) {
 	float cos = math::cos(angle / 2.0f);
 	float sin = math::sin(angle / 2.0f);
 	axis = axis * sin;
@@ -175,8 +174,7 @@ Vector3 math::rotate(Vector3 v, float angle, Vector3 axis)
 	return result;
 }
 
-Vector3 math::cross(Vector3 a, Vector3 b)
-{
+Vector3 math::cross(Vector3 a, Vector3 b) {
 	Vector3 result;
 
 	result.x = a.y * b.z - a.z * b.y;
@@ -186,28 +184,31 @@ Vector3 math::cross(Vector3 a, Vector3 b)
 	return result;
 }
 
-Vector3 math::normalize(Vector3 x)
-{
+Vector2 math::normalize(Vector2 x) {
 	float length = math::length(x);
-	if (length < 0.001f)
-	{
+	if (length < 0.001f) {
+		return Vector2();
+	}
+	return x / length;
+}
+
+Vector3 math::normalize(Vector3 x) {
+	float length = math::length(x);
+	if (length < 0.001f) {
 		return Vector3();
 	}
 	return x / length;
 }
 
-Vector4 math::normalize(Vector4 x)
-{
+Vector4 math::normalize(Vector4 x) {
 	float length = math::length(x);
-	if (length < 0.001f)
-	{
+	if (length < 0.001f) {
 		return Vector4();
 	}
 	return x / length;
 }
 
-Matrix4x4 math::get_identity()
-{
+Matrix4x4 math::get_identity() {
 	Matrix4x4 result = {};
 
 	result[0] = result[5] = result[10] = result[15] = 1;
@@ -215,14 +216,12 @@ Matrix4x4 math::get_identity()
 	return result;
 }
 
-Matrix4x4 math::get_translation(Vector3 v)
-{
+Matrix4x4 math::get_translation(Vector3 v) {
 	Matrix4x4 result = get_translation(v.x, v.y, v.z);
 	return result;
 }
 
-Matrix4x4 math::get_translation(float x, float y, float z)
-{
+Matrix4x4 math::get_translation(float x, float y, float z) {
 	Matrix4x4 result = {};
 
 	result[0] = 1;
@@ -236,8 +235,7 @@ Matrix4x4 math::get_translation(float x, float y, float z)
 	return result;
 }
 
-Matrix4x4 math::get_scale(float scale)
-{
+Matrix4x4 math::get_scale(float scale) {
 	Matrix4x4 result = {};
 
 	result[0] = result[5] = result[10] = scale;
@@ -246,8 +244,7 @@ Matrix4x4 math::get_scale(float scale)
 	return result;
 }
 
-Matrix4x4 math::get_scale(float s_x, float s_y, float s_z)
-{
+Matrix4x4 math::get_scale(float s_x, float s_y, float s_z) {
 	Matrix4x4 result = {};
 
 	result[0] = s_x;
@@ -258,14 +255,12 @@ Matrix4x4 math::get_scale(float s_x, float s_y, float s_z)
 	return result;
 }
 
-Matrix4x4 math::get_scale(Vector3 scale)
-{
+Matrix4x4 math::get_scale(Vector3 scale) {
 	return math::get_scale(scale.x, scale.y, scale.z);
 }
 
 
-Matrix4x4 math::get_rotation(float angle, Vector3 axis)
-{
+Matrix4x4 math::get_rotation(float angle, Vector3 axis) {
 	float c = math::cos(angle);
 	float s = math::sin(angle);
 
@@ -296,10 +291,9 @@ Matrix4x4 math::get_rotation(float angle, Vector3 axis)
 	return result;
 }
 
-Matrix4x4 math::get_rotation(Quaternion q)
-{
+Matrix4x4 math::get_rotation(Quaternion q) {
 	q = math::normalize(q);
-	
+
 	Matrix4x4 result = {};
 	result[0] = 1 - 2 * q.y * q.y - 2 * q.z * q.z;
 	result[1] = 2 * q.x * q.y + 2 * q.w * q.z;
@@ -318,8 +312,7 @@ Matrix4x4 math::get_rotation(Quaternion q)
 	return result;
 }
 
-Matrix4x4 math::get_perspective_projection_dx_rh(float fov, float aspect_ratio, float near, float far)
-{
+Matrix4x4 math::get_perspective_projection_dx_rh(float fov, float aspect_ratio, float near, float far) {
 	Matrix4x4 result;
 
 	float cot_fov = 1 / (math::tan(fov / 2.0f));
@@ -332,8 +325,7 @@ Matrix4x4 math::get_perspective_projection_dx_rh(float fov, float aspect_ratio, 
 	return result;
 }
 
-Matrix4x4 math::get_orthographics_projection_dx_rh(float left, float right, float bottom, float top, float near, float far)
-{
+Matrix4x4 math::get_orthographics_projection_dx_rh(float left, float right, float bottom, float top, float near, float far) {
 	Matrix4x4 result;
 
 	result[0] = 2.0f / (right - left);
@@ -347,8 +339,7 @@ Matrix4x4 math::get_orthographics_projection_dx_rh(float left, float right, floa
 	return result;
 }
 
-Matrix4x4 math::get_look_at(Vector3 eye, Vector3 target, Vector3 up)
-{
+Matrix4x4 math::get_look_at(Vector3 eye, Vector3 target, Vector3 up) {
 	Matrix4x4 matrix;
 	Vector3 x, y, z;
 
@@ -371,8 +362,7 @@ Matrix4x4 math::get_look_at(Vector3 eye, Vector3 target, Vector3 up)
 	return matrix;
 }
 
-Matrix4x4 math::transpose(Matrix4x4 m)
-{
+Matrix4x4 math::transpose(Matrix4x4 m) {
 	Matrix4x4 result = {};
 	result[0]  = m[0];
 	result[1]  = m[4];
@@ -394,11 +384,10 @@ Matrix4x4 math::transpose(Matrix4x4 m)
 	result[14] = m[11];
 	result[15] = m[15];
 
-	return result;	
+	return result;
 }
 
-Matrix4x4 math::invert(Matrix4x4 m)
-{
+Matrix4x4 math::invert(Matrix4x4 m) {
 	Matrix4x4 inv;
 	float det;
 
@@ -529,11 +518,9 @@ Matrix4x4 math::invert(Matrix4x4 m)
 }
 
 
-float math::ray_plane_intersection(Vector3 ray_origin, Vector3 ray_direction, Vector3 plane_normal, float plane_distance)
-{
+float math::ray_plane_intersection(Vector3 ray_origin, Vector3 ray_direction, Vector3 plane_normal, float plane_distance) {
 	float direction_dot = math::dot(ray_direction, plane_normal);
-	if (math::abs(direction_dot) < 0.001f)
-	{
+	if (math::abs(direction_dot) < 0.001f) {
 		return -1.0f;
 	}
 	float intersection_time = -(math::dot(ray_origin, plane_normal) + plane_distance) / direction_dot;
@@ -541,7 +528,52 @@ float math::ray_plane_intersection(Vector3 ray_origin, Vector3 ray_direction, Ve
 }
 
 float math::ray_box_intersection(Vector3 ray_origin, Vector3 ray_direction, Vector3 box_position,
-				    			 Vector3 x_axis, Vector3 y_axis, Vector3 z_axis)
-{
+				    			 Vector3 x_axis, Vector3 y_axis, Vector3 z_axis) {
 	return 0.0f;
+}
+
+
+// TODO: other source of randomness than rand()
+#include <cstdlib>
+float math::random_uniform(float low, float high) {
+	float normalized = (rand() % 10000) / 10000.0f;
+	float result = normalized * (high - low) + low;
+
+	return result;
+}
+
+int math::random_uniform_int(int low, int high) {
+	int result = (rand() % (high - low)) + low;
+	return result;
+}
+
+Vector3 math::random_uniform_unit_sphere() {
+	float azimuth = math::random_uniform(0, math::PI2);
+	float polar = math::acos(2 * math::random_uniform() - 1);
+	float r = math::pow(math::random_uniform(), 1.0f / 3.0f);
+	
+	Vector3 result;
+
+	result.x = r * math::cos(azimuth) * math::sin(polar);
+	result.y = r * math::cos(polar);
+	result.z = r * math::sin(azimuth) * math::sin(polar);
+
+	return result;
+}
+
+Vector3 math::random_uniform_unit_hemisphere() {
+	float y = math::random_uniform(0.0f, 1.0f);
+	float r = math::sqrt(1.0f - y * y);
+	float phi = math::random_uniform(0.0f, math::PI2);
+
+	float radius = math::random_uniform(0.0f, 1.0f);
+	radius = math::sqrt(radius);
+	
+	Vector3 result;
+
+	result.x = r * math::cos(phi) * radius;
+	result.y = y * radius;
+	result.z = r * math::sin(phi) * radius;
+
+	return result;
 }

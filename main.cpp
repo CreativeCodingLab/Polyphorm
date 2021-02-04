@@ -3,10 +3,11 @@
 #include "file_system.h"
 #include "maths.h"
 #include "memory.h"
-#include "ui.h"
+#include "title_bar.h"
 #include "font.h"
 #include "input.h"
 #include "random.h"
+#include "ui.h"
 #include <cassert>
 #include <mmsystem.h>
 #include "logging.h"
@@ -312,8 +313,8 @@ int main(int argc, char **argv)
 
     // Window setup
     uint32_t window_width = SCREEN_X, window_height = SCREEN_Y;
- 	Window window = platform::get_window("Space Physarum", window_width, window_height);
-    assert(platform::is_window_valid(&window));
+ 	HWND window = platform::get_window("Space Physarum", window_width, window_height);
+    assert(platform::is_window_valid(window));
 
     // Data setup
         // Load dataset description from metafile
@@ -338,7 +339,7 @@ int main(int argc, char **argv)
     metadata_file.close();
 
         // Load binary data points
-    File raw_data = file_system::read_file((filename + ".bin").c_str());
+    File raw_data = file_system::read_file((char *)(filename + ".bin").c_str());
     float *input_data = (float*)raw_data.data;
     printf("\n-> input data points: %d\n", data_count);
     printf("-> number of agents: %d\n", NUM_AGENTS);
@@ -389,11 +390,15 @@ int main(int argc, char **argv)
     // Init graphics
     printf("\nInitializing graphics...\n");
     graphics::init();
-    graphics::init_swap_chain(&window);
+    graphics::init_swap_chain(window, (float)window_width, (float)window_height);
 
     font::init();
     ui::init((float)window_width, (float)window_height);
+    ui::set_background_opacity(0);
     ui::set_input_responsive(true);
+
+    title_bar::init(window, false);
+    
 
     // Create window render target
 	RenderTarget render_target_window = graphics::get_render_target_window();
@@ -572,7 +577,7 @@ int main(int argc, char **argv)
                 #ifdef AGENTS_INIT_AROUND_DATA // Initialize the agents around data points to speed up convergence
                 int random_data_index = (int)random::uniform(0.0, (float)(data_count-1));
                 const float random_spread = 0.025;
-                float radius = random_spread * math::min(math::min(gx, gy), gz) * random::uniform();
+                float radius = random_spread * math::min(math::min(gx, (int) gy), (int) gz) * random::uniform();
                 float xi1 = random::uniform();
                 float xi2 = random::uniform();
                 px[i] = px[random_data_index] + radius * math::cos(math::PI2 * xi1) * math::sqrt(xi2 * (1.0-xi2));
@@ -593,6 +598,7 @@ int main(int argc, char **argv)
     };
     update_particles(particles_x, particles_y, particles_z, particles_phi, particles_theta, particles_weights,
                     NUM_PARTICLES, GRID_RESOLUTION_X, GRID_RESOLUTION_Y, GRID_RESOLUTION_Z, WORLD_SIZE_X, WORLD_SIZE_Y, WORLD_SIZE_Z, WORLD_CENTER_X, WORLD_CENTER_Y, WORLD_CENTER_Z, mean_weight);
+
 
     // Set up buffer containing particle data
     StructuredBuffer particles_buffer_x = graphics::get_structured_buffer(sizeof(float), NUM_PARTICLES);
@@ -804,7 +810,7 @@ int main(int argc, char **argv)
             if(!ui::is_registering_input()) {
                 if (math::abs(input::mouse_scroll_delta()) > 0)
                     reset_pt = true;
-                radius = math::max(radius - input::mouse_scroll_delta() * 0.1, 0.01);
+                radius = math::max(radius - input::mouse_scroll_delta() * 0.1, (float) 0.01);
                 if (input::mouse_left_button_down()) {
                     Vector2 dm = input::mouse_delta_position();
                     azimuth -= dm.x * 0.003;
@@ -1244,6 +1250,7 @@ int main(int argc, char **argv)
             const Vector4 label_params = Vector4(8.6, 3.0, 0.0, 0.0);
             const Vector4 label_color = Vector4(0.5, 0.95, 0.55, 0.55);
             std::stringstream histo_label;
+
             for (int b = 0; b < N_HISTOGRAM_BINS-1; ++b) {
                 float current_bar = 0.5 + histo_params2.x * float(density_histogram[b]) / norm_coef;
                 Vector4 bar_color = Vector4(0.4, 0.9, 0.5, 0.5);
@@ -1265,7 +1272,7 @@ int main(int argc, char **argv)
                     Vector2(histo_params.x + b*(histo_params.z+histo_params.w) + 2.0,
                     histo_params.y + 2.0),
                     label_color);
-            }
+            }  
 
             // Draw energy plot
             static int eplot_ptr = 0;
@@ -1332,7 +1339,7 @@ int main(int argc, char **argv)
             ++label_counter;
 
             // Draw trimming visualization
-            float slice_wz = math::max(rendering_config.trim_z_max - rendering_config.trim_z_min, 0.01);
+            float slice_wz = math::max(rendering_config.trim_z_max - rendering_config.trim_z_min, (float) 0.01);
             const Vector4 trim_params = Vector4(float(SCREEN_X)-10.0, float(SCREEN_Y)-10.0, 0.08 * float(SCREEN_Y), 0.0);
             const Vector4 cube_color = Vector4(0.5, 0.95, 0.5, 0.1 * slice_wz);
             const Vector4 slice_color1 = Vector4(0.55, 0.75, 0.0, 0.3 * slice_wz);
@@ -1344,21 +1351,22 @@ int main(int argc, char **argv)
                 trim_params.z,
                 cube_color);
             float slice_px = 1.0 - (rendering_config.trim_x_max + rendering_config.trim_x_min) / 2.0;
-            float slice_wx = math::max(rendering_config.trim_x_max - rendering_config.trim_x_min, 0.025);
+            float slice_wx = math::max(rendering_config.trim_x_max - rendering_config.trim_x_min, (float) 0.025);
             float slice_py = 1.0 - (rendering_config.trim_y_max + rendering_config.trim_y_min) / 2.0;
-            float slice_wy = math::max(rendering_config.trim_y_max - rendering_config.trim_y_min, 0.025);
+            float slice_wy = math::max(rendering_config.trim_y_max - rendering_config.trim_y_min, (float) 0.025);
             if (slice_wy > slice_wx) {
-                ui::draw_rect(trim_params.x - math::min(slice_py + 0.5*slice_wy, 1.0) * trim_params.z, trim_params.y - trim_params.z, trim_params.z * (slice_wy - math::max(math::max(1.0-slice_py, slice_py) + 0.5*slice_wy - 1.0, 0.0)), trim_params.z, slice_color1);
-                ui::draw_rect(trim_params.x - trim_params.z, trim_params.y - math::min(slice_px + 0.5*slice_wx, 1.0) * trim_params.z, trim_params.z, trim_params.z * (slice_wx - math::max(math::max(1.0-slice_px, slice_px) + 0.5*slice_wx - 1.0, 0.0)), slice_color2);
+                ui::draw_rect(trim_params.x - math::min(slice_py + 0.5*slice_wy, (float) 1.0) * trim_params.z, trim_params.y - trim_params.z, trim_params.z * (slice_wy - math::max(math::max((float) 1.0-slice_py, (float) slice_py) + 0.5*slice_wy - 1.0, (float) 0.0)), trim_params.z, slice_color1);
+                ui::draw_rect(trim_params.x - trim_params.z, trim_params.y - math::min(slice_px + 0.5*slice_wx, (float) 1.0) * trim_params.z, trim_params.z, trim_params.z * (slice_wx - math::max(math::max(1.0-slice_px, slice_px) + 0.5*slice_wx - 1.0, (float) 0.0)), slice_color2);
             } else {
-                ui::draw_rect(trim_params.x - trim_params.z, trim_params.y - math::min(slice_px + 0.5*slice_wx, 1.0) * trim_params.z, trim_params.z, trim_params.z * (slice_wx - math::max(math::max(1.0-slice_px, slice_px) + 0.5*slice_wx - 1.0, 0.0)), slice_color2);
-                ui::draw_rect(trim_params.x - math::min(slice_py + 0.5*slice_wy, 1.0) * trim_params.z, trim_params.y - trim_params.z, trim_params.z * (slice_wy - math::max(math::max(1.0-slice_py, slice_py) + 0.5*slice_wy - 1.0, 0.0)), trim_params.z, slice_color1);
+                ui::draw_rect(trim_params.x - trim_params.z, trim_params.y - math::min(slice_px + 0.5*slice_wx, (float) 1.0) * trim_params.z, trim_params.z, trim_params.z * (slice_wx - math::max(math::max((float) 1.0-slice_px, (float) slice_px) + 0.5*slice_wx - 1.0, (float) 0.0)), slice_color2);
+                ui::draw_rect(trim_params.x - math::min(slice_py + 0.5*slice_wy, (float) 1.0) * trim_params.z, trim_params.y - trim_params.z, trim_params.z * (slice_wy - math::max(math::max(1.0-slice_py, slice_py) + 0.5*slice_wy - 1.0, (float) 0.0)), trim_params.z, slice_color1);
             }
             ui::draw_text("Y", Vector2(trim_params.x - 0.52 * trim_params.z, trim_params.y - trim_params.z - 15.0), label_color);
             ui::draw_text("X", Vector2(trim_params.x - trim_params.z - 10.0, trim_params.y - 0.52 * trim_params.z), label_color);
 
             ui::end();
         }
+
 
         // Frame capturing
         if (is_running && make_screenshot) {
@@ -1373,7 +1381,7 @@ int main(int argc, char **argv)
         if (show_ui) {
             graphics::set_render_targets_viewport(&render_target_window);
 
-            Panel panel = ui::start_panel("", Vector2(0.0, 0.0), 1.0);
+            Panel panel = ui::start_panel("", Vector2(0.0, 20.0), 1.0);
             const float smoothing_coef = 0.1;
 
             float ss = math::rad2deg(simulation_config.sense_spread);
@@ -1522,6 +1530,7 @@ int main(int argc, char **argv)
 
             ui::end_panel(&panel);
             ui::end();
+            title_bar::draw();
         }
 
         if (run_mold) {

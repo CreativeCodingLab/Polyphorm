@@ -7,11 +7,10 @@
 #include "font.h"
 
 #include <cstdlib>
-#include <cassert>
 
-#ifdef CPPLIB_DEBUG_PRINTS
-#include "logging.h"
-#define PRINT_DEBUG(message, ...) logging::print_error(message, ##__VA_ARGS__)
+#ifdef DEBUG
+#include<stdio.h>
+#define PRINT_DEBUG(message, ...) {printf("ERROR in file %s on line %d: ", __FILE__, __LINE__); printf(message, __VA_ARGS__); printf("\n");}
 #else
 #define PRINT_DEBUG(message, ...)
 #endif
@@ -188,7 +187,7 @@ void process_pixel_shader(AssetInfo pixel_shader_info, sid id)
 		PRINT_DEBUG("Could not read pixel shader file %s.", pixel_shader_info.path);
 		return;
 	}
-	
+
 	PRINT_DEBUG("Compiling pixel shader %s.", pixel_shader_info.path);
 	CompiledShader pixel_shader_code = graphics::compile_pixel_shader(pixel_shader_file.data, pixel_shader_file.size);
 	file_system::release_file(pixel_shader_file);
@@ -209,7 +208,7 @@ void process_geometry_shader(AssetInfo geometry_shader_info, sid id)
 		PRINT_DEBUG("Could not read geometry shader file %s.", geometry_shader_info.path);
 		return;
 	}
-	
+
 	PRINT_DEBUG("Compiling geometry shader %s.", geometry_shader_info.path);
 	CompiledShader geometry_shader_code = graphics::compile_geometry_shader(geometry_shader_file.data, geometry_shader_file.size);
 	file_system::release_file(geometry_shader_file);
@@ -231,7 +230,7 @@ void process_audio_ogg(AssetInfo ogg_info, sid id)
 		PRINT_DEBUG("Could not read ogg file %s.", ogg_info.path);
 		return;
 	}
-	
+
     Sound sound = audio::get_sound_ogg(ogg_file.data, ogg_file.size);
 	table::add(&sounds, id, sound);
 	file_system::release_file(ogg_file);
@@ -244,7 +243,7 @@ void process_font(AssetInfo font_info, sid id)
 		PRINT_DEBUG("Could not read otf file %s.", font_info.path);
 		return;
 	}
-	
+
 	uint8_t *font_data = memory::alloc_heap<uint8_t>(font_file.size);
 	memcpy(font_data, font_file.data, font_file.size);
 

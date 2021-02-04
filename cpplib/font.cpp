@@ -1,9 +1,8 @@
 #include "font.h"
-#include "memory.h"
 
-#ifdef CPPLIB_DEBUG_PRINTS
-#include "logging.h"
-#define PRINT_DEBUG(message, ...) logging::print_error(message, ##__VA_ARGS__)
+#ifdef DEBUG
+#include<stdio.h>
+#define PRINT_DEBUG(message, ...) {printf("ERROR in file %s on line %d: ", __FILE__, __LINE__); printf(message, __VA_ARGS__); printf("\n");}
 #else
 #define PRINT_DEBUG(message, ...)
 #endif
@@ -11,8 +10,7 @@
 // Globally unique objects
 FT_Library ft_library;
 
-bool font::init()
-{
+bool font::init() {
     int32_t error = FT_Init_FreeType(&ft_library);
     if (error) {
         PRINT_DEBUG("Error initializing FreeType library!");
@@ -21,27 +19,30 @@ bool font::init()
     return true;
 }
 
-Font font::get(uint8_t *data, int32_t data_size, int32_t size, int32_t texture_size)
-{
+// NOTE: Memory allocation inside
+Font font::get(uint8_t *data, int32_t data_size, int32_t size, int32_t bitmap_size) {
     Font font = {};
-    
-    // Store temp allocator stack state    
-    memory::push_temp_state();
 
-    // Allocate memory for the texture
-    uint8_t *font_buffer = memory::alloc_temp<uint8_t>(texture_size * texture_size);
+    // Allocate memory for the bitmap
+    uint8_t *font_bitmap = (uint8_t *)malloc(bitmap_size * bitmap_size);
+    if(!font_bitmap) {
+        PRINT_DEBUG("Error allocating memory for font bitmap!");
+        return Font{};
+    }
+
     FT_Face face;
     int32_t error = FT_New_Memory_Face(ft_library, data, data_size, 0, &face);
     if (error) {
         PRINT_DEBUG("Error creating font face!");
+        free(font_bitmap);
         return Font{};
     }
 
     int32_t supersampling = 1;
     error = FT_Set_Pixel_Sizes(face, 0, size);
-    if (error)
-    {
+    if (error) {
         PRINT_DEBUG("Error setting pixel size!");
+        free(font_bitmap);
         return Font{};
     }
 
@@ -54,14 +55,13 @@ Font font::get(uint8_t *data, int32_t data_size, int32_t size, int32_t texture_s
     font.top_pad = (float)(row_height - (ascender - descender));
     font.scale = 1.0f;
     font.face = face;
- 
-    for (unsigned char c = 32; c < 128; ++c)
-    {
+
+    for (unsigned char c = 32; c < 128; ++c) {
         // Load character c
         error = FT_Load_Char(face, c, FT_LOAD_RENDER | FT_LOAD_TARGET_LIGHT);
-        if(error)
-        {
+        if(error) {
             PRINT_DEBUG("Error loading character %c!", c);
+            free(font_bitmap);
             return Font{};
         }
 
@@ -71,47 +71,37 @@ Font font::get(uint8_t *data, int32_t data_size, int32_t size, int32_t texture_s
         int advance = face->glyph->advance.x >> 6;
 
         // Get bitmap parameters
-        int bitmap_width = face->glyph->bitmap.width, bitmap_height = face->glyph->bitmap.rows;
+        int glyph_bitmap_width = face->glyph->bitmap.width, bitmap_height = face->glyph->bitmap.rows;
         int pitch = face->glyph->bitmap.pitch;
 
         // In case we don't fit in the row, let's move to next row
-        if(x > texture_size - bitmap_width)
-        {
+        if(x > bitmap_size - glyph_bitmap_width) {
             x = 0;
             y += row_height;
         }
 
         // Copy over bitmap
-        for(int32_t r = 0; r < bitmap_height; ++r)
-        {
+        for(int32_t r = 0; r < bitmap_height; ++r) {
             uint8_t *source = face->glyph->bitmap.buffer + pitch * r;
-            uint8_t *dest = font_buffer + (y + r) * texture_size + x;
-            memcpy(dest, source, bitmap_width);
+            uint8_t *dest = font_bitmap + (y + r) * bitmap_size + x;
+            memcpy(dest, source, glyph_bitmap_width);
         }
 
         // Store glyph settings
-        font.glyphs[c - 32] = {x, y, bitmap_width, bitmap_height, x_offset, y_offset, advance};
+        font.glyphs[c - 32] = {x, y, glyph_bitmap_width, bitmap_height, x_offset, y_offset, advance};
 
         // Move in the bitmap
-        x += bitmap_width;
+        x += glyph_bitmap_width;
     }
 
-    // Initialize D3D texture for the Font
-    font.texture = graphics::get_texture2D(font_buffer, texture_size, texture_size, DXGI_FORMAT_R8_UNORM, 1);
-    if(!graphics::is_ready(&font.texture))
-    {
-        PRINT_DEBUG("Could not create texture for font.");
-        return Font{};
-    }
-
-    // Restore memory state of the temp allocator
-    memory::pop_temp_state();
+    font.bitmap = font_bitmap;
+    font.bitmap_width = bitmap_size;
+    font.bitmap_height = bitmap_size;
 
     return font;
 }
 
-float font::get_kerning(Font *font, char c1, char c2)
-{
+float font::get_kerning(Font *font, char c1, char c2) {
     FT_Vector kerning;
     int32_t left_glyph_index = FT_Get_Char_Index(font->face, c1);
     int32_t right_glyph_index = FT_Get_Char_Index(font->face, c2);
@@ -119,36 +109,73 @@ float font::get_kerning(Font *font, char c1, char c2)
     return (float)kerning.x;
 }
 
-float font::get_string_width(const char *string, Font *font)
-{
+float font::get_string_width(char *string, Font *font) {
     float width = 0;
-    int i = 0;
-    while(string[i])
-    {
+    while(*string) {
         // Get a glyph for the current character
-        char c = string[i];
+        char c = *string;
         Glyph glyph = font->glyphs[c - 32];
 
         // Increment width by character's advance. This should be more precise than taking it's bitmap's width.
         width += glyph.advance;
-        
+
         // Take kerning into consideration
-        if (string[i+1])
-            width += font::get_kerning(font, c, string[i+1]);
+        if (*(string + 1)) width += font::get_kerning(font, c, *(string + 1));
 
         // Next letter
-        i++;
+        string++;
     }
 
     return width;
 }
 
-float font::get_row_height(Font *font)
+float font::get_string_width(const char *string, Font *font)
 {
+    float width = 0;
+    while(*string)
+    {
+        // Get a glyph for the current character
+        char c = *string;
+        Glyph glyph = font->glyphs[c - 32];
+
+        // Increment width by character's advance. This should be more precise than taking it's bitmap's width.
+        width += glyph.advance;
+
+        // Take kerning into consideration
+        if (*(string + 1)) width += font::get_kerning(font, c, *(string + 1));
+
+        // Next letter
+        string++;
+    }
+
+    return width;
+}
+
+float font::get_string_width(char *string, int string_length, Font *font) {
+    float width = 0;
+    for(int i = 0; i < string_length; ++i) {
+        // Get a glyph for the current character
+        char c = *string;
+        Glyph glyph = font->glyphs[c - 32];
+
+        // Increment width by character's advance. This should be more precise than taking it's bitmap's width.
+        width += glyph.advance;
+
+        // Take kerning into consideration
+        if (*(string + 1)) width += font::get_kerning(font, c, *(string + 1));
+
+        // Next letter
+        string++;
+    }
+
+    return width;
+}
+
+float font::get_row_height(Font *font) {
     return font->row_height;
 }
 
-void font::release(Font *font)
-{
-    graphics::release(&font->texture);
+void font::release(Font *font) {
+    free(font->bitmap);
+    font->bitmap = 0;
 }

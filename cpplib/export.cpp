@@ -3,9 +3,9 @@
 #include "export.h"
 #include "file_system.h"
 #include "memory.h"
-#ifdef CPPLIB_DEBUG_PRINTS
-#include "logging.h"
-#define PRINT_DEBUG(message, ...) logging::print_error(message, ##__VA_ARGS__)
+#ifdef DEBUG
+#include<stdio.h>
+#define PRINT_DEBUG(message, ...) {printf("ERROR in file %s on line %d: ", __FILE__, __LINE__); printf(message, __VA_ARGS__); printf("\n");}
 #else
 #define PRINT_DEBUG(message, ...)
 #endif
@@ -16,7 +16,7 @@ bool exports::export_to_obj(char *filename, Vector4 *vertices, uint32_t vertex_c
 {
     uint32_t number_of_lines = vertex_count * 2 + index_count / 3;
     uint32_t max_line_length = 50; // Should suffice for +-10000
-    
+
     uint32_t total_file_size = number_of_lines * max_line_length;
 
     char *file_memory = memory::alloc_heap<char>(total_file_size);

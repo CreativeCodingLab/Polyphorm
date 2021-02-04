@@ -4,32 +4,26 @@
 
 // TODO: Later split into separate files for Vectors/Matrices
 
-struct Vector2
-{
-	union
-	{
+struct Vector2 {
+	union {
 		float v[2];
-		struct
-		{
+		struct {
 			float x;
 			float y;
 		};
 	};
 
 	Vector2():
-		x(0), y(0)
-	{
+		x(0), y(0) {
 
 	}
 
 	Vector2(float x, float y) :
-		x(x), y(y)
-	{
+		x(x), y(y) {
 
 	}
 
-	Vector2 operator-(Vector2 v)
-	{
+	Vector2 operator-(Vector2 v) {
 		Vector2 result;
 
 		result.x = this->x - v.x;
@@ -38,8 +32,7 @@ struct Vector2
 		return result;
 	}
 
-	Vector2 operator+(Vector2 v)
-	{
+	Vector2 operator+(Vector2 v) {
 		Vector2 result;
 
 		result.x = this->x + v.x;
@@ -48,8 +41,7 @@ struct Vector2
 		return result;
 	}
 
-	Vector2 operator/(float x)
-	{
+	Vector2 operator/(float x) {
 		Vector2 result;
 
 		result.x = this->x / x;
@@ -58,8 +50,7 @@ struct Vector2
 		return result;
 	}
 
-	Vector2 operator*(float x)
-	{
+	Vector2 operator*(float x) {
 		Vector2 result;
 
 		result.x = this->x * x;
@@ -68,22 +59,39 @@ struct Vector2
 		return result;
 	}
 
+	Vector2& operator+=(Vector2 v) {
+		this->x += v.x;
+		this->y += v.y;
+
+		return *this;
+	}
+
+	Vector2& operator-=(Vector2 v) {
+		this->x -= v.x;
+		this->y -= v.y;
+
+		return *this;
+	}
+
+	Vector2& operator*=(float x) {
+		this->x *= x;
+		this->y *= x;
+
+		return *this;
+	}
+
 };
 
 struct Vector4;
-struct Vector3
-{
-	union
-	{
+struct Vector3 {
+	union {
 		float v[3];
-		struct
-		{
+		struct {
 			float x;
 			float y;
 			float z;
 		};
-		struct
-		{
+		struct {
 			float r;
 			float g;
 			float b;
@@ -91,26 +99,22 @@ struct Vector3
 	};
 
 	Vector3() :
-		v()
-	{
+		v() {
 
 	}
 
 	Vector3(float x, float y, float z) :
-		x(x), y(y), z(z)
-	{
+		x(x), y(y), z(z) {
 
 	}
 
 	Vector3(Vector4 v);
 
-	float& operator[](int index)
-	{
+	float& operator[](int index) {
 		return v[index];
 	}
 
-	Vector3 operator-()
-	{
+	Vector3 operator-() {
 		Vector3 result;
 
 		result.x = -this->x;
@@ -121,8 +125,7 @@ struct Vector3
 	}
 
 
-	Vector3 operator-(Vector3 v)
-	{
+	Vector3 operator-(Vector3 v) {
 		Vector3 result;
 
 		result.x = this->x - v.x;
@@ -132,8 +135,7 @@ struct Vector3
 		return result;
 	}
 
-	Vector3 operator+(Vector3 v)
-	{
+	Vector3 operator+(Vector3 v) {
 		Vector3 result;
 
 		result.x = this->x + v.x;
@@ -143,8 +145,27 @@ struct Vector3
 		return result;
 	}
 
-	Vector3 operator*(float x)
-	{
+	Vector3 operator+(float x) {
+		Vector3 result;
+
+		result.x = this->x + x;
+		result.y = this->y + x;
+		result.z = this->z + x;
+
+		return result;
+	}
+
+	Vector3 operator-(float x) {
+		Vector3 result;
+
+		result.x = this->x - x;
+		result.y = this->y - x;
+		result.z = this->z - x;
+
+		return result;
+	}
+
+	Vector3 operator*(float x) {
 		Vector3 result;
 
 		result.x = this->x * x;
@@ -154,8 +175,7 @@ struct Vector3
 		return result;
 	}
 
-	Vector3 operator/(float x)
-	{
+	Vector3 operator/(float x) {
 		Vector3 result;
 
 		result.x = this->x / x;
@@ -165,67 +185,69 @@ struct Vector3
 		return result;
 	}
 
-	Vector3& operator+=(Vector3 v)
-	{
+	Vector3& operator+=(Vector3 v) {
 		this->x += v.x;
 		this->y += v.y;
 		this->z += v.z;
 
 		return *this;
 	}
+
+	Vector3& operator-=(Vector3 v) {
+		this->x -= v.x;
+		this->y -= v.y;
+		this->z -= v.z;
+
+		return *this;
+	}
 };
 
-struct Vector4
-{
-	union
-	{
+struct Vector4 {
+	union {
 		float v[4];
-		struct 
-		{
+		struct {
 			float x;
 			float y;
 			float z;
 			float w;
 		};
-		struct
-		{
+		struct {
 			float r;
 			float g;
 			float b;
 			float a;
 		};
-		struct
-		{
+		struct {
 			Vector3 xyz;
 			float w;
 		};
 	};
 
-	float& operator[](int index)
-	{
+	float& operator[](int index) {
 		return v[index];
 	}
 
 	Vector4() :
-		x(0), y(0), z(0), w(0)
-	{
+		x(0), y(0), z(0), w(0) {
 
 	}
 
 	Vector4(float x, float y, float z, float w) :
-		x(x), y(y), z(z), w(w)
-	{
+		x(x), y(y), z(z), w(w) {
+
+	}
+
+	Vector4(Vector2 v, float z, float w):
+		x(v.x), y(v.y), z(z), w(w) {
 
 	}
 
 	Vector4(Vector3 v, float w):
-		x(v.x), y(v.y), z(v.z), w(w)
-	{
+		x(v.x), y(v.y), z(v.z), w(w) {
 
 	}
 
-	Vector4 operator-()
-	{
+	Vector4 operator-() {
 		Vector4 result;
 
 		result.x = -this->x;
@@ -236,9 +258,29 @@ struct Vector4
 		return result;
 	}
 
+	Vector4 operator+(Vector4 v) {
+		Vector4 result;
 
-	Vector4 operator*(float x)
-	{
+		result.x = this->x + v.x;
+		result.y = this->y + v.y;
+		result.z = this->z + v.z;
+		result.w = this->w + v.w;
+
+		return result;
+	}
+
+	Vector4 operator-(Vector4 v) {
+		Vector4 result;
+
+		result.x = this->x - v.x;
+		result.y = this->y - v.y;
+		result.z = this->z - v.z;
+		result.w = this->w - v.w;
+
+		return result;
+	}
+
+	Vector4 operator*(float x) {
 		Vector4 result;
 
 		result.x = this->x * x;
@@ -249,8 +291,7 @@ struct Vector4
 		return result;
 	}
 
-	Vector4 operator*=(float x)
-	{
+	Vector4 operator*=(float x) {
 		this->x = this->x * x;
 		this->y = this->y * x;
 		this->z = this->z * x;
@@ -259,8 +300,16 @@ struct Vector4
 		return *this;
 	}
 
-	Vector4 operator/(float x)
-	{
+	Vector4& operator+=(Vector4 v) {
+		this->x += v.x;
+		this->y += v.y;
+		this->z += v.z;
+		this->w += v.w;
+
+		return *this;
+	}
+
+	Vector4 operator/(float x) {
 		Vector4 result;
 
 		result.x = this->x / x;
@@ -276,13 +325,10 @@ typedef Vector4 Quaternion;
 Vector3 operator*(float x, Vector3 v);
 
 // TODO: switch to rows?
-struct Matrix4x4
-{
-	union
-	{
+struct Matrix4x4 {
+	union {
 		float x[16];
-		struct
-		{
+		struct {
 			// NOTE: these are columns
 			Vector4 v1;
 			Vector4 v2;
@@ -292,18 +338,15 @@ struct Matrix4x4
 	};
 
 	Matrix4x4() :
-		x{ 0 }
-	{
+		x{ 0 } {
 
 	}
 
-	float& operator[](int index)
-	{
+	float& operator[](int index) {
 		return x[index];
 	}
 
-	Matrix4x4 operator *(Matrix4x4 m)
-	{
+	Matrix4x4 operator *(Matrix4x4 m) {
 		Matrix4x4 result;
 		result[0] = x[0] * m[0] + x[4] * m[1] + x[8] * m[2] + x[12] * m[3];
 		result[1] = x[1] * m[0] + x[5] * m[1] + x[9] * m[2] + x[13] * m[3];
@@ -327,8 +370,7 @@ struct Matrix4x4
 		return result;
 	}
 
-	Vector4 operator *(Vector4 v)
-	{
+	Vector4 operator *(Vector4 v) {
 		Vector4 result;
 		result[0] = x[0] * v[0] + x[4] * v[1] + x[8] * v[2] + x[12] * v[3];
 		result[1] = x[1] * v[0] + x[5] * v[1] + x[9] * v[2] + x[13] * v[3];
@@ -338,8 +380,7 @@ struct Matrix4x4
 	}
 };
 
-namespace math
-{
+namespace math {
 	const float PIHALF = 1.57079633f;
 	const float PI     = 3.14159265f;
 	const float PI2    = 6.28318530f;
@@ -347,6 +388,8 @@ namespace math
 #undef min
 	float max(float a, float b);
 	float min(float a, float b);
+	int max(int a, int b);
+	int min(int a, int b);
 	float abs(float x);
 	float sin(float x);
 	float cos(float x);
@@ -356,19 +399,22 @@ namespace math
 	float sqrt(float x);
 	float square(float x);
 	float pow(float x, float e);
+	float sign(float x);
+	float length(Vector2 x);
 	float length(Vector3 x);
 	float length(Vector4 x);
+	float length_squared(Vector2 x);
 	float length_squared(Vector3 x);
 	float length_squared(Vector4 x);
 	template<typename T>
-	T clamp(T x, T min, T max)
-	{
+	T clamp(T x, T min, T max) {
 		if (x > max) return max;
 		if (x < min) return min;
 		return x;
 	}
 	float floor(float x);
 
+	float lerp(float v1, float v2, float x);
 	Vector3 lerp(Vector3 v1, Vector3 v2, float x);
 	Vector4 lerp(Vector4 v1, Vector4 v2, float x);
 	Vector4 nlerp(Vector4 v1, Vector4 v2, float x);
@@ -381,9 +427,11 @@ namespace math
 	float fmod(float x, float m);
 	int32_t mod(int32_t x, int32_t m);
 
+	float dot(Vector2 a, Vector2 b);
 	float dot(Vector3 a, Vector3 b);
 	float dot(Vector4 a, Vector4 b);
 	Vector3 cross(Vector3 a, Vector3 b);
+	Vector2 normalize(Vector2);
 	Vector3 normalize(Vector3);
 	Vector4 normalize(Vector4);
 
@@ -413,4 +461,16 @@ namespace math
 	float ray_plane_intersection(Vector3 ray_origin, Vector3 ray_direction, Vector3 plane_normal, float plane_distance);
 	float ray_box_intersection(Vector3 ray_origin, Vector3 ray_direction, Vector3 box_position,
 							   Vector3 x_axis, Vector3 y_axis, Vector3 z_axis);
+
+	float random_uniform(float low = 0.0f, float high = 1.0f);
+	int random_uniform_int(int low = 0, int high = 2);
+	// Azimuth: 0 at +x axis in right handed system
+	//			pi / 2 at +z axis in right handed system
+	// Polar: 0 at the top
+	Vector3 random_uniform_unit_sphere();
+	Vector3 random_uniform_unit_hemisphere();
 }
+
+#ifdef CPPLIB_MATHS_IMPL
+#include "maths.cpp"
+#endif

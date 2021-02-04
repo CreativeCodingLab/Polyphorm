@@ -1,8 +1,8 @@
 #include "ovr.h"
 #include "memory.h"
-#ifdef CPPLIB_DEBUG_PRINTS
-#include "logging.h"
-#define PRINT_DEBUG(message, ...) logging::print_error(message, ##__VA_ARGS__)
+#ifdef DEBUG
+#include<stdio.h>
+#define PRINT_DEBUG(message, ...) {printf("ERROR in file %s on line %d: ", __FILE__, __LINE__); printf(message, __VA_ARGS__); printf("\n");}
 #else
 #define PRINT_DEBUG(message, ...)
 #endif
@@ -67,7 +67,7 @@ bool ovr::init_swap_chain()
     ovr_GetTextureSwapChainLength(ovr_context->session, ovr_context->swap_chain, &ovr_context->rts_count);
 
     ovr_context->rts = memory::alloc_heap<ID3D11RenderTargetView *>(ovr_context->rts_count);
-    
+
     for (int32_t i = 0; i < ovr_context->rts_count; ++i)
     {
         ID3D11Texture2D *texture = NULL;
@@ -97,7 +97,7 @@ bool ovr::init_swap_chain()
 
 Viewport ovr::get_current_viewport(Eye eye)
 {
-    Viewport current_viewport = 
+    Viewport current_viewport =
     {
         (float)ovr_context->layer.Viewport[eye].Pos.x,
         (float)ovr_context->layer.Viewport[eye].Pos.y,

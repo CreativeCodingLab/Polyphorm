@@ -3,9 +3,9 @@
 #include <Xaudio2.h>
 #include "stb_vorbis.c"
 
-#ifdef CPPLIB_DEBUG_PRINTS
-#include "logging.h"
-#define PRINT_DEBUG(message, ...) logging::print_error(message, ##__VA_ARGS__)
+#ifdef DEBUG
+#include<stdio.h>
+#define PRINT_DEBUG(message, ...) {printf("ERROR in file %s on line %d: ", __FILE__, __LINE__); printf(message, __VA_ARGS__); printf("\n");}
 #else
 #define PRINT_DEBUG(message, ...)
 #endif
@@ -17,7 +17,7 @@ static AudioContext *audio_context = &audio_context_;
 bool audio::init()
 {
     CoInitialize(NULL);
-    
+
     HRESULT hr = XAudio2Create(&audio_context->engine, 0, XAUDIO2_DEFAULT_PROCESSOR);
     if (FAILED(hr)) {
         PRINT_DEBUG("Failed to create XAudio2 engine.");
@@ -72,7 +72,7 @@ Sound audio::get_sound_ogg(void *data, uint32_t data_size)
         PRINT_DEBUG("Failed to submit a source buffer.");
         return Sound{};
     }
-    
+
     return sound;
 }
 
