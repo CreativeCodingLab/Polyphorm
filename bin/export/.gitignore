@@ -1,7 +1,4 @@
-/deposit.bin
-/deposit.dds
-/export_metadata.txt
-/halos_measurements.csv
-/trace.bin
-/trace.dds
-*.txt
+/rerouting=0_deposit=linear/
+/rerouting=0_deposit=log/
+/rerouting=1_deposit=log/
+/rerouting=1_deposit=linear/

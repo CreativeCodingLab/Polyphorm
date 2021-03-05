@@ -1,1 +1,6 @@
 *.tga
+*.hdr
+*.png
+/final/
+/rotating/
+/tng_growth/
