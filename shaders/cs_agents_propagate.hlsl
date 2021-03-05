@@ -92,6 +92,12 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
     float x = particles_x[idx];
     float y = particles_y[idx];
     float z = particles_z[idx];
+    RNG rng;
+    rng.set_seed(
+        rng.wang_hash(73*idx),
+        rng.wang_hash(uint(x*y*z))
+    );
+
     float th = particles_theta[idx];
     float ph = particles_phi[idx];
     float particle_weight = particles_weights[idx];
@@ -106,12 +112,6 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
         #endif
         return;
     }
-
-    RNG rng;
-    rng.set_seed(
-        rng.wang_hash(73*idx),
-        rng.wang_hash(uint(x*y*z))
-    );
 
     // Get vector which points in the current particle's direction 
     float3 center_axis = float3(sin(th) * cos(ph), cos(th), sin(th) * sin(ph));
@@ -143,10 +143,6 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
     float random_angle = rng.random_float() * TWOPI - PI;
     float3 sense_offset = rotate(off_center_base_dir, center_axis, random_angle) * sense_distance_prob;
     float sense_deposit = tex_deposit[p + int3(sense_offset)];
-    // float temperature = move_sense_coef;
-    // float p_straight = exp(-1.0 / (deposit_ahead * temperature));
-    // float p_turn = exp(-1.0 / (sense_deposit * temperature));
-    // float sharpness = 0.1 + move_sense_coef * exp(-mod(0.1 * float(idx), 5.0));
     float sharpness = move_sense_coef;
     #ifdef PROBABILISTIC_SAMPLING
     float p_straight = pow(max(deposit_ahead, 0.0), sharpness);
@@ -168,30 +164,6 @@ void main(uint thread_index : SV_GroupIndex, uint3 group_id : SV_GroupID){
             ph = atan2(new_direction.z, new_direction.x);
             th = acos(new_direction.y / length(new_direction));
         }
-
-    // // Experimental direction sampling 2
-    // float bias = move_sense_coef;
-    // float total_prob = pow(deposit_ahead, bias);
-    // for (int i = 0; i < DIR_SAMPLE_POINTS; ++i) {
-
-    //     float random_angle = rng.random_float() * TWOPI - PI;
-    //     float3 sense_offset = rotate(off_center_base_dir, center_axis, random_angle) * sense_distance_prob;
-    //     float sense_deposit = tex_deposit[p + int3(sense_offset)];
-
-    //     float current_dir_prob = pow(sense_deposit, bias);
-    //     total_prob += current_dir_prob;
-    //     if (total_prob < 1.0e-5)
-    //         continue;
-
-    //     float xiDir = rng.random_float();
-    //     if (xiDir < current_dir_prob / total_prob) {
-    //         float theta_turn = th - turn_angle;
-    //         float3 off_center_base_dir_turn = float3(sin(theta_turn) * cos(ph), cos(theta_turn), sin(theta_turn) * sin(ph));
-    //         float3 new_direction = rotate(off_center_base_dir_turn, center_axis, random_angle);
-    //         ph = atan2(new_direction.z, new_direction.x);
-    //         th = acos(new_direction.y / length(new_direction));
-    //     }
-    // }
 
     // // Naive 3D sampling
     // // Sample environment away from the center axis and store max values

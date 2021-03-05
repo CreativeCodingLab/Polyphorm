@@ -11,6 +11,7 @@
 #define TEMPORAL_ACCUMULATION
 #define RUSSIAN_ROULETTE
 // #define GRADIENT_GUIDING
+// #define TRACE_SHARPENING
 
 // Illumination types
 // #define WHITESKY_ILLUMINATION
@@ -271,7 +272,7 @@ float pdf_HG(float g, float cos_angle) {
     return (1.0 - g*g) / (denominator_cubicrt * denominator_cubicrt * denominator_cubicrt);
 }
 
-float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBounces, inout RNG rng) {
+float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBounces, int nRRStartOrder, inout RNG rng) {
     float3 L = float3(0.0, 0.0, 0.0);
     float throughput = 1.0;
     float albedo = sigma_s / (sigma_a + sigma_s);
@@ -307,10 +308,6 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
         float3 ld = lp - rp;
         float l_distance = length(ld);
         ld = normalize(ld);
-        // Inefficient but unbiased binary visibility estimator
-        // float t_occlusion = delta_tracking(rp, ld, 0.0, l_distance, rho_max_inv, rng);
-        // if (t_occlusion > l_distance)
-        //     emission += 100.0 * galaxy_weight /  max(l_distance * l_distance, 1.0);
         // Modified delta-tracking transmittance estimator
         float transmittance = occlusion_tracking(rp, ld, 0.0, l_distance, rho_max_inv, 10.0, rng);
         emission += 100.0 * galaxy_weight * transmittance / max(l_distance * l_distance, 1.0);
@@ -319,8 +316,10 @@ float3 get_incident_L(float3 rp, float3 rd, float3 c_low, float3 c_high, int nBo
 
         // Adjust the path throughput (RR or modulate)
         #ifdef RUSSIAN_ROULETTE
-        if (rng.random_float() > albedo)
+        if (n >= nRRStartOrder && rng.random_float() > albedo)
             return L;
+        else
+            throughput *= albedo;
         #else
         throughput *= albedo;
         #endif
@@ -406,7 +405,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         if (sigma_s < INTENSITY_EPSILON) {
         // If there's no appreciable scattering, we can just use the
         // emission-absorption model and ray-march the solution
-            int iSteps = int(length(rd));
+            int iSteps = int(length(rd) / 1.71);
             float3 dd = rd / float(iSteps);
             rd = normalize(rd);
             float tau = 0.0;
@@ -434,7 +433,7 @@ void main(uint3 threadIDInGroup : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         } else {
         // If there's significant scattering, we need the full path-traced solution
             rd = normalize(rd);
-            path_L = get_incident_L(rp, rd, c_low_trimmed, c_high_trimmed, n_bounces + 1, rng);
+            path_L = get_incident_L(rp, rd, c_low_trimmed, c_high_trimmed, n_bounces + 1, 2, rng);
             path_L *= PI2;
         }
     } else {
