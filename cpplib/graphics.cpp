@@ -566,18 +566,39 @@ void graphics::save_texture2D(Texture2D *texture, std::string filename)
 {
 	DirectX::ScratchImage image;
 	if (!SUCCEEDED(DirectX::CaptureTexture(graphics_context->device, graphics_context->context, texture->texture, image))) {
-		PRINT_DEBUG("Failed to capture 2D texture.");
-		printf("Failed to capture 2D texture.");
+		PRINT_DEBUG("Failed to capture 2D texture.\n");
+		printf("Failed to capture 2D texture.\n");
 		return;
 	}
 
 	std::wstringstream stream;
 	stream << filename.c_str() << ".tga";
 	if (!SUCCEEDED(DirectX::SaveToTGAFile(*image.GetImages(), stream.str().c_str()))) {
-		PRINT_DEBUG("Failed to store 3D texture to specified file.");
-		printf("Failed to store 3D texture to specified file.");
-		return;
+		PRINT_DEBUG("Failed to store 3D texture to specified TGA file.\n");
+		printf("Failed to store 3D texture to specified TGA file.\n");
 		image.Release();
+		return;
+	}
+
+	image.Release();
+}
+
+void graphics::save_texture2D_HDR(Texture2D *texture, std::string filename)
+{
+	DirectX::ScratchImage image;
+	if (!SUCCEEDED(DirectX::CaptureTexture(graphics_context->device, graphics_context->context, texture->texture, image))) {
+		PRINT_DEBUG("Failed to capture 2D HDR texture.\n");
+		printf("Failed to capture 2D HDR texture.\n");
+		return;
+	}
+
+	std::wstringstream stream;
+	stream << filename.c_str() << ".hdr";
+	if (!SUCCEEDED(DirectX::SaveToHDRFile(*image.GetImages(), stream.str().c_str()))) {
+		PRINT_DEBUG("Failed to store 3D texture to specified HDR file.\n");
+		printf("Failed to store 3D texture to specified HDR file.\n");
+		image.Release();
+		return;
 	}
 
 	image.Release();
@@ -587,18 +608,18 @@ void graphics::save_texture3D(Texture3D *texture, std::string filename)
 {
 	DirectX::ScratchImage image;
 	if (!SUCCEEDED(DirectX::CaptureTexture(graphics_context->device, graphics_context->context, texture->texture, image))) {
-		PRINT_DEBUG("Failed to capture 3D texture.");
-		printf("Failed to capture 3D texture.");
+		PRINT_DEBUG("Failed to capture 3D texture.\n");
+		printf("Failed to capture 3D texture.\n");
 		return;
 	}
 
 	std::wstringstream wstream;
 	wstream << filename.c_str() << ".dds";
 	if (!SUCCEEDED(DirectX::SaveToDDSFile(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::DDS_FLAGS_NONE, wstream.str().c_str()))) {
-		PRINT_DEBUG("Failed to store 3D texture to specified file.");
-		printf("Failed to store 3D texture to specified file.");
-		return;
+		PRINT_DEBUG("Failed to store 3D texture to specified file.\n");
+		printf("Failed to store 3D texture to specified file.\n");
 		image.Release();
+		return;
 	}
 
 	std::stringstream stream;
@@ -614,7 +635,7 @@ void graphics::save_texture3D(Texture3D *texture, std::string filename)
 	image.Release();
 }
 
-void graphics::capture_current_frame()
+uint32_t graphics::capture_current_frame()
 {
 	ID3D11Texture2D* pBuffer;
 	swap_chain->swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBuffer);
@@ -632,6 +653,7 @@ void graphics::capture_current_frame()
 	save_texture2D(&texture_to_save, stream.str());
 
 	RELEASE_DX_RESOURCE(texture_to_save.texture);
+	return count-1;
 }
 
 void graphics::set_texture(RenderTarget *buffer, uint32_t slot)

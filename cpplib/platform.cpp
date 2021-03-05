@@ -152,13 +152,17 @@ Window platform::get_window(char *window_name, uint32_t window_width, uint32_t w
 		window_width = window_rect.right - window_rect.left;
 		window_height = window_rect.bottom - window_rect.top;
 		
+		const auto WIN_X = 10; const auto WIN_Y = 10;
 		window.window_handle = CreateWindowA("CustomWindowClass", window_name, window_flags, 
-											 60, 10, window_width, window_height, NULL, NULL, program_instance, NULL);
+											 WIN_X, WIN_Y, window_width, window_height, NULL, NULL, program_instance, NULL);
+
+		// Added to allow windows larger than screen resolution for the dark practices of hi-res rendering
+		SetWindowPos(window.window_handle, 0, WIN_X, WIN_Y, window_width, window_height, SWP_NOCOPYBITS | SWP_NOSENDCHANGING | SWP_SHOWWINDOW);
 
 		RAWINPUTDEVICE device;
 		device.usUsagePage = 0x01;
 		device.usUsage = 0x06;
-		device.dwFlags = RIDEV_NOLEGACY;        // do not generate legacy messages such as WM_KEYDOWN
+		device.dwFlags = RIDEV_NOLEGACY; // do not generate legacy messages such as WM_KEYDOWN
 		device.hwndTarget = window.window_handle;
 		RegisterRawInputDevices(&device, 1, sizeof(device));
 	}
