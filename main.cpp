@@ -20,15 +20,16 @@
 //====================================================================
 
 //*** Work regimes: Uncomment exactly one!
-// #define REGIME_SDSS
+#define REGIME_SDSS
 // #define REGIME_FRB
-#define REGIME_TNG
+// #define REGIME_TNG
 // #define REGIME_BOLSHOI_PLANCK
 // #define REGIME_ROCKSTAR
 // #define REGIME_POISSON
 // #define REGIME_CONNECTOME
 // #define REGIME_EMBEDDING
 // #define REGIME_ZOE
+// #define REGIME_CATHEDRAL
 
 //*** Enable velocity analysis, which will change the trace volume from <half> to <half4>
 //*** with the extra 3 channels storing the equilibrium mean unsigned orientation of the agents
@@ -43,18 +44,27 @@
 //====================================================================
 
 #ifdef REGIME_SDSS
-#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
+// #define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_bigger_lumdist_t=0.0"
 //#define DATASET_NAME "data/SDSS/galaxiesInSdssSlice_viz_huge_t=10.3"
-// #define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
+#define DATASET_NAME "data/SDSS/sdssGalaxy_rsdCorr_dbscan_e2p0ms3_dz0p001_m10p0_t=10.3"
 #define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
 #define COLOR_PALETTE_DATA "data/palette_hot.tga"
+// SDSS small
+// const float SENSE_SPREAD = 20.0;
+// const float SENSE_DISTANCE = 2.55;
+// const float MOVE_ANGLE = 10.0;
+// const float MOVE_DISTANCE = 0.1;
+// const float AGENT_DEPOSIT = 0.0;
+// const float PERSISTENCE = 0.91;
+// const float SAMPLING_EXPONENT = 3.5;
+// SDSS large
 const float SENSE_SPREAD = 20.0;
-const float SENSE_DISTANCE = 2.55;
+const float SENSE_DISTANCE = 3.51;
 const float MOVE_ANGLE = 10.0;
 const float MOVE_DISTANCE = 0.1;
 const float AGENT_DEPOSIT = 0.0;
-const float PERSISTENCE = 0.91;
-const float SAMPLING_EXPONENT = 3.5;
+const float PERSISTENCE = 0.89;
+const float SAMPLING_EXPONENT = 4.08;
 #endif
 
 #ifdef REGIME_BOLSHOI_PLANCK
@@ -74,9 +84,9 @@ const float SAMPLING_EXPONENT = 3.0;
 
 #ifdef REGIME_TNG
 // #define DATASET_NAME "data/TNG/tng100-1_allSubHalos_spinEtc_t=0.001_blue=63061_red=66060"
-#define DATASET_NAME "data/TNG/tng100-1_allSubHalos_spinEtc_t=0.01_nocolor"
-#define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
+#define DATASET_NAME "data/TNG/tng100-1_allSubHalos_spinEtc_t=0.001_nocolor"
 // #define COLOR_PALETTE_TRACE "data/palette_magma.tga"
+#define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
 #define COLOR_PALETTE_DATA "data/palette_hot.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 2.35;
@@ -102,8 +112,15 @@ const float SAMPLING_EXPONENT = 3.6;
 
 #ifdef REGIME_ROCKSTAR
 #define DATASET_NAME "data/MassiveNuS/rockstar_mnv0.10000_om0.30000_As2.1000_out_66t=0.0roi=256.0"
-#define COLOR_PALETTE_TRACE "data/palette_magma.tga"
+#define COLOR_PALETTE_TRACE "data/palette_gogh_green.tga"
 #define COLOR_PALETTE_DATA "data/palette_hot.tga"
+const float SENSE_SPREAD = 20.0;
+const float SENSE_DISTANCE = 2.35;
+const float MOVE_ANGLE = 10.0;
+const float MOVE_DISTANCE = 0.05;
+const float AGENT_DEPOSIT = 0.0;
+const float PERSISTENCE = 0.87;
+const float SAMPLING_EXPONENT = 4.2;
 #endif
 
 #ifdef REGIME_POISSON
@@ -131,8 +148,8 @@ const float SAMPLING_EXPONENT = 4.5;
 
 #ifdef REGIME_EMBEDDING
 #define DATASET_NAME "data/Embeddings/W2V_UMAP_params_15_n=296630"
-#define COLOR_PALETTE_TRACE "data/palette_magma.tga"
-#define COLOR_PALETTE_DATA "data/palette_gogh_blue.tga"
+#define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
+#define COLOR_PALETTE_DATA "data/palette_hot.tga"
 const float SENSE_SPREAD = 20.0;
 const float SENSE_DISTANCE = 3.0;
 const float MOVE_ANGLE = 10.0;
@@ -153,6 +170,19 @@ const float MOVE_DISTANCE = 0.04;
 const float AGENT_DEPOSIT = 0.0;
 const float PERSISTENCE = 0.91;
 const float SAMPLING_EXPONENT = 3.5;
+#endif
+
+#ifdef REGIME_CATHEDRAL
+#define DATASET_NAME "data/Cathedrals/angkor_wat_n=48259"
+#define COLOR_PALETTE_TRACE "data/palette_sunset3.tga"
+#define COLOR_PALETTE_DATA "data/palette_hot.tga"
+const float SENSE_SPREAD = 20.0;
+const float SENSE_DISTANCE = 3.0;
+const float MOVE_ANGLE = 10.0;
+const float MOVE_DISTANCE = 0.1;
+const float AGENT_DEPOSIT = 0.0;
+const float PERSISTENCE = 0.8;
+const float SAMPLING_EXPONENT = 4.5;
 #endif
 
 // Other hardwired settings ==========================================
@@ -585,7 +615,12 @@ int main(int argc, char **argv)
                 float x = input_data[start_index];
                 float y = input_data[start_index + 1];
                 float z = input_data[start_index + 2];
-                float weight = input_data[start_index + 3];
+
+                // TODO EVALUATE DIFFERENT APPROACHES FROM UI !!
+                
+                // float weight = 1.0;
+                // float weight = input_data[start_index + 3];
+                float weight = log10f(1.0 + input_data[start_index + 3]);
                 float color = 0.0;
                 #ifdef HALO_COLOR_ANALYSIS
                 color = input_data[start_index + 4];
@@ -1407,7 +1442,10 @@ int main(int argc, char **argv)
 
         // Frame capturing
         if (is_running && make_screenshot) {
-            graphics::capture_current_frame();
+            uint32_t frame_number = graphics::capture_current_frame();
+            std::stringstream stream;
+	        stream << "capture\\frame" << frame_number;
+            graphics::save_texture2D_HDR(&display_tex, stream.str());
             make_screenshot = false;
         }
         if (is_running && capture_screen) {
