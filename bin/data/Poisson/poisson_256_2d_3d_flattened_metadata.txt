@@ -1,0 +1,8 @@
+Number of points = 256
+Min X = 0.321
+Max X = 99.977
+Min Y = 0.309
+Max Y = 99.965
+Min Z = 50.0
+Max Z = 50.0
+Mean weight = 0.5

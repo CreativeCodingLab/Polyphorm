@@ -1,0 +1,8 @@
+Number of points = 4096
+Min X = 0.0
+Max X = 100.0
+Min Y = 0.0
+Max Y = 100.0
+Min Z = 0.0
+Max Z = 100.0
+Mean weight = 1.0
