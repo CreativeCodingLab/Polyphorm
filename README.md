@@ -118,3 +118,5 @@ As well as one (simulated) protista:
 - [Physarum polycephalum](https://en.wikipedia.org/wiki/Physarum_polycephalum) - taught us spatial navigation and foraging
 
 Many thanks also belong to other humans: Sage Jenson (for a major inception), Jeff Jones (for writing that great paper), Daisuke Nagai (for numerous ideas and insights), Sebastian Herholz and Jaroslav Křivánek (for all the Monte Carlo lore).
+
+[![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/organization/repository)
