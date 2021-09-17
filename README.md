@@ -33,7 +33,12 @@ You can see *Polyphorm* in action in the **following video**. A selection of mor
 Troubleshooting checklist: 1] system requirements all met; 2] DirectXTex library successfully built (in Release mode); 3] paths in build.bat and polyphorm.build point to existing valid folders; 4] there's enough video memory available (if not, decrease 'Grid Resolution' in the config.polyp file).
 
 ## Quick Manual
-The software is launched simply by running **./bin/polyphorm.exe**. The **./bin/config.polyp** file holds most of the settings. The supplied sample dataset is a corpus of 37.6k galaxies from the SDSS catalog described in *Burchett et al. 2020: Mapping the Dark Threads of the Cosmic Web*. The dataset can be changed in the preamble of **main.cpp** (will be freely configurable later).
+The software is launched simply by running **./bin/polyphorm.exe**. The **./bin/config.polyp** plaintext file holds most of the settings related to the performance of the application (screen resolution, number of agents, resolution and margins of fitting grids).
+
+### Data
+The supplied sample dataset is a catalog of 37.6k galaxies from the SDSS catalog described in *Burchett et al. 2020: Mapping the Dark Threads of the Cosmic Web* (see **Publications** below).
+
+A new dataset can be added the preamble of **main.cpp** by defining a new `REGIME_*` and specifying the path to the source file, colormaps for the visualization, and initial hyperparameter values for MCPM. The input data consists of two files: a binary file specifying the target point cloud data, and a plaintext metadata file. The data file must contain serialized 4-vectors of float32 values, each 4-vector storing the 3D position of a data point and its weight. One way to produce such a file is through the Python function `nparray.tofile()`. The metadata file must specify the number of data points, their spatial extrema, and the average mean value of the points' weights.
 
 ### Controls
 Most of *Polyphorm*'s controls are a part of the UI, including changing the visualization modality and its parameters. The rest is mapped as follows:
@@ -90,7 +95,7 @@ Immediately upon launching, Polyphorm starts fitting to the input data. The stat
 ## Publications
 *Polyphorm* has been instrumental in the following scientific results.
 
-- [**Polyphorm: Structural Analysis of Cosmological Datasets via Interactive Physarum Polycephalum Visualization**](https://arxiv.org/abs/2009.02441) (ArXiv, September 2020; presented at IEEE VIS, October 2020; final version published in Transactions of Visualizations and Computer Graphics, February 2021)
+- [**Polyphorm: Structural Analysis of Cosmological Datasets via Interactive Physarum Polycephalum Visualization**](https://arxiv.org/abs/2009.02441) (presented at IEEE VIS, October 2020; final version published in Transactions of Visualizations and Computer Graphics, February 2021)
 <img src="docs/vis_options_small.png" width="92%" height="92%"><br/>
   This paper presents the *Polyphorm* software in full extent: detailed account of the tasks driving our design decisions, exposition of the MCPM model, and concise explanation of the astronomical use cases (which are also reviewed below).
 
