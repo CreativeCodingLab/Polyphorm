@@ -2,7 +2,7 @@ import numpy as np
 
 file_name = 'galaxiesInSdssSlice_viz_bigger_lumdist'
 file_type = '.dat'
-separator = ' '
+separator = ','
 mass_threshold = 0.0
 
 with open(file_name + file_type) as f:
