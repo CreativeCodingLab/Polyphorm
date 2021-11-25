@@ -50,7 +50,8 @@ Most of *Polyphorm*'s controls are a part of the UI, including changing the visu
 - F1/Esc: toggle/terminate UI
 - F2/F3: reset/toggle the simulation
 - F4: autorotating camera
-- F5/F6: export agent/field data (to ./bin/export/)
+- F5: export agent data (to ./bin/export/)
+- F6: export trace and deposit field data (to ./bin/export/)
 - F7/'1': activate continuous/single screen capture (stored in ./bin/capture)
 - F8: flush the trace data (but maintain agents' and simulation state)
 - F9/F10: save/load current visualization state (camera + visual settings)
