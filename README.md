@@ -38,7 +38,11 @@ The software is launched simply by running **./bin/polyphorm.exe**. The **./bin/
 ### Data
 The supplied sample dataset is a catalog of 37.6k galaxies from the SDSS catalog described in *Burchett et al. 2020: Mapping the Dark Threads of the Cosmic Web* (see **Publications** below).
 
-A new dataset can be added the preamble of **main.cpp** by defining a new `REGIME_*` and specifying the path to the source file, colormaps for the visualization, and initial hyperparameter values for MCPM. The input data consists of two files: a binary file specifying the target point cloud data, and a plaintext metadata file. The data file must contain serialized 4-vectors of float32 values, each 4-vector storing the 3D position of a data point and its weight. One way to produce such a file is through the Python function `nparray.tofile()`. The metadata file must specify the number of data points, their spatial extrema, and the average mean value of the points' weights.
+A new dataset can be added the preamble of **main.cpp** by defining a new `REGIME_*` and specifying the path to the source file, colormaps for the visualization, and initial hyperparameter values for MCPM. The input data consists of **two files**: a binary file specifying the target 3D point data, and a plaintext metadata file:
+- The **data file** must contain serialized 4-vectors of float32 values, each 4-vector storing the 3D position of a data point and its weight. One way to produce such a file is through the Python function `nparray.tofile()`.
+- The **metadata file** must specify the number of data points, their spatial extrema, and the average mean value of the points' weights.
+
+An example preprocessing script is provided in the root directory under the name `pack_data_celestial.py`. This script parses a simple CSV file containing the source points (defined in polar coordinates) and produces the two input files for *Polyphorm* as specified above. It can be easily modified to load your custom data.
 
 ### Controls
 Most of *Polyphorm*'s controls are a part of the UI, including changing the visualization modality and its parameters. The rest is mapped as follows:
