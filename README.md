@@ -35,14 +35,21 @@ Troubleshooting checklist: 1] system requirements all met; 2] DirectXTex library
 ## Quick Manual
 The software is launched simply by running **./bin/polyphorm.exe**. The **./bin/config.polyp** plaintext file holds most of the settings related to the performance of the application (screen resolution, number of agents, resolution and margins of fitting grids).
 
-### Data
+### Input Data
 The supplied sample dataset is a catalog of 37.6k galaxies from the SDSS catalog described in *Burchett et al. 2020: Mapping the Dark Threads of the Cosmic Web* (see **Publications** below).
 
-A new dataset can be added the preamble of **main.cpp** by defining a new `REGIME_*` and specifying the path to the source file, colormaps for the visualization, and initial hyperparameter values for MCPM. The input data consists of **two files**: a binary file specifying the target 3D point data, and a plaintext metadata file:
-- The **data file** must contain serialized 4-vectors of float32 values, each 4-vector storing the 3D position of a data point and its weight. One way to produce such a file is through the Python function `nparray.tofile()`.
-- The **metadata file** must specify the number of data points, their spatial extrema, and the average mean value of the points' weights.
+A new dataset can be added the preamble of **main.cpp** by defining a new `REGIME_*` and specifying the path to the source data file, colormaps for the visualization, and initial [parameter values for MCPM](https://elek.pub/research.html#Elek2021b). The input data consists of **two files**: a binary file specifying the target 3D point data, and a plaintext metadata file:
+- The **data file** must contain serialized 4-vectors [XYZW] of float32 values, each 4-vector storing the 3D position XYZ of a data point and its weight W. One way to produce such a file is through the Python function `nparray.tofile()`.
+- The **metadata file** must specify the number of data points, their XYZ spatial extrema, and the average mean value of the points' weights W.
 
 An example preprocessing script is provided in the root directory under the name `pack_data_celestial.py`. This script parses a simple CSV file containing the source points (defined in polar coordinates) and produces the two input files for *Polyphorm* as specified above. It can be easily modified to load your custom data.
+
+### Outupt Data
+The main data product of Polyphorm is a 'trace' grid: a 3D array of float16 scalar values representing the spatiotemporal MCPM agent density. This can be exported at any point during fitting by pressing 'F6' (allow a few seconds for the operation). The file and its metadata will be saved in the `./bin/export/` folder.
+
+Along with the trace grid, a 'deposit' grid with the same dimensions will be exported. This represents the data-emitted marker and can be used as a baseline reference comparison, since it's equivalent to a weighted kernel density estimate that uses a Gaussian kernel.
+
+A notebook illustrating how to load these datasets is provided in the root directory under the name `OpenPolyphorm.ipynb`.
 
 ### Controls
 Most of *Polyphorm*'s controls are a part of the UI, including changing the visualization modality and its parameters. The rest is mapped as follows:
@@ -117,16 +124,16 @@ Immediately upon launching, Polyphorm starts fitting to the input data. The stat
   The **left figure** shows the spatial distribution of the observed galaxies along the sightlint towards FRB 190608 as a function of cosmic redshift (z), plotted as histogram (top) and scatterplot additionally parametrized by the galaxies' impact parameters (bottom). The red dashed line indicates the FRB host redshift. The spikes in the galaxies' distribution indicate overdensitites in the underlying cosmic web structure. The subsequent analysis using an MCPM reconstruction provided by *Polyphorm* in the **right figure** was able to attribute the unusually strong absorption profile (blue line) to the increased cosmic web density, compared to the mean expected profile (red line).
 
 ## People
-*Polyphorm* would not happen without the following humans on the team:
+*Polyphorm* is a result of this research team's work:
 - [Oskar Elek](https://cgg.mff.cuni.cz/~oskar) - primary author, computational media researcher at Creative Coding lab, UC Santa Cruz
 - [Joseph N. Burchett](http://www.joeburchett.com/) - astronomer at UC Santa Cruz, expert in galactic ecosystems
 - [Angus G. Forbes](https://creativecoding.soe.ucsc.edu/angus/) - director of Creative Coding lab, UC Santa Cruz
 - [J. Xavier Prochaska](http://www.ucolick.org/~xavier/) - professor of Astronomy & Astrophysics, UC Santa Cruz
 - [Jan Ivanecky](http://janivanecky.com/) - developed an initial prototype and provided relentless technical support
 
-As well as one (simulated) protista:
-- [Physarum polycephalum](https://en.wikipedia.org/wiki/Physarum_polycephalum) - taught us spatial navigation and foraging
+Many thanks also belong to other humans: Sage Jenson (for a major inception), Jeff Jones (for writing that great 2010 paper), Daisuke Nagai (for numerous ideas and insights), Sebastian Herholz and Jaroslav Křivánek (for all the Monte Carlo lore), Drew Ehrlich (for wrangling with major chunks of code).
 
-Many thanks also belong to other humans: Sage Jenson (for a major inception), Jeff Jones (for writing that great paper), Daisuke Nagai (for numerous ideas and insights), Sebastian Herholz and Jaroslav Křivánek (for all the Monte Carlo lore).
+Finally our gratitude goes to one amazing 500M years old protist:
+- [Physarum polycephalum](https://en.wikipedia.org/wiki/Physarum_polycephalum) - taught us spatial navigation and foraging
 
 [![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/organization/repository)
